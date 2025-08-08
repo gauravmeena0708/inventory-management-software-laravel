@@ -18,7 +18,7 @@ class CreateDesktopsTable extends Migration
             $table->string('serial');
             $table->string('brand');
             $table->string('category');
-            $table->foreignId('location_id')->references('id')->on('locations')->onDelete('cascade')->onUpdate('cascade')->nullable();         
+            $table->foreignId('location_id')->references('id')->on('locations')->onDelete('cascade')->onUpdate('cascade')->nullable()->default(null);
             $table->boolean('active');
             $table->string('file')->nullable();
             $table->date('purchased')->nullable();

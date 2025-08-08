@@ -23,10 +23,10 @@ class EntryFactory extends Factory
     {
         
         return [
-            'consumable_id' => $this->faker->unique()->numberBetween(1,82),
+            'consumable_id' => \App\Models\Consumable::all()->random()->id,
             'type' => 0,
             'amount' => 10,
-            'issuer_id' => 5,
+            'issuer_id' => \App\Models\Official::all()->random()->id,
             'stock' => 10
         ];
     }

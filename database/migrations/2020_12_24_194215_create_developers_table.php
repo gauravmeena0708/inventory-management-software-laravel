@@ -16,13 +16,13 @@ class CreateDevelopersTable extends Migration
         Schema::create('developers', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->foreignId('category_id')->references('id')->on('category')->onDelete('cascade')->onUpdate('cascade');         
+            $table->foreignId('category_id')->references('id')->on('devcats')->onDelete('cascade')->onUpdate('cascade');
             $table->boolean('status'); 
             $table->string('phone');
             $table->string('email');
             $table->date('joining_date')->nullable(); 
             $table->string('expertise')->nullable();
-            $table->foreignId('reporting_id')->references('id')->on('user')->onDelete('cascade')->onUpdate('cascade');         
+            $table->foreignId('reporting_id')->references('id')->on('users')->onDelete('cascade')->onUpdate('cascade');
             $table->date('exit_date')->nullable();
             $table->string('father_name')->nullable();
             $table->string('mother_name')->nullable();

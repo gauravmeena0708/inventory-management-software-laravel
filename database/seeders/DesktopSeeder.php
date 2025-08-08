@@ -1313,6 +1313,11 @@ class DesktopSeeder extends Seeder
             ),
         );
         
-        Desktop::insert($desktops);
+        foreach ($desktops as $desktop) {
+            if ($desktop['location_id'] === 0) {
+                unset($desktop['location_id']);
+            }
+            Desktop::create($desktop);
+        }
     }
 }
