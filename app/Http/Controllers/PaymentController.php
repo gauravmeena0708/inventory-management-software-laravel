@@ -2,136 +2,147 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\PaymentStatus;
+use App\Http\Requests\CompletePaymentRequest;
 use App\Models\Payment;
-use App\Models\Agreement;
+use App\Services\Agreements\CompletePaymentAction;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class PaymentController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-    
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Display a listing of payments.
      */
-    public function index()
+    public function index(Request $request): View|JsonResponse
     {
-        $payments = Payment::get();
-        return view('payments.index',['payments'=>$payments]);
-    }
+        $this->authorize('viewAny', Payment::class);
 
-    public function due()
-    {
-        $payments = Payment::where('due_date','<',now())
-                    -> where('pending',1)
-                    ->get();
-        return view('payments.index',['payments'=>$payments]);
-    }
+        $query = Payment::query()->with(['agreement', 'completedBy']);
 
-    public function completed()
-    {
-        $payments = Payment::where('pending','<',1)->get();
-        return view('payments.index',['payments'=>$payments]);
-    }
-
-    public function generate()
-    {   $counter =1;
-        $agreements = Agreement::get();
-        $payments = Payment::count();
-        if ($payments) {
-            return "Already Generated";
+        $status = $request->input('status');
+        if ($status === 'overdue') {
+            $query->overdue();
+        } elseif ($status === 'pending') {
+            $query->pending();
+        } elseif ($status === 'completed') {
+            $query->completed();
+        } elseif ($request->filled('status')) {
+            $query->where('status', $status);
         }
-        $update_array = array();
-        foreach($agreements as $agreement){
-            if ($agreement['frequency']>0) {
-                $payment_numbers= 12/$agreement['frequency'];
-                foreach(range(1, $payment_numbers) as $i) {
-                    $push_array=array(
-                            "id" => $counter,
-                            "name" => $agreement['name']."_".$i,
-                            "file_id" => $agreement['efile'],
-                            "agreement_id" => $agreement['id'],
-                            "due_date" => "2020-".$agreement['frequency']*$i."-01",
-                            "remark" => NULL,
-                            "pending" => 1
-                    );
-                    array_push($update_array,$push_array);
-                    $counter++;
-                }
+
+        if ($request->filled('agreement_id')) {
+            $query->where('agreement_id', $request->input('agreement_id'));
+        }
+
+        $payments = $query->orderBy('due_date', 'asc')->paginate(25)->withQueryString();
+
+        if ($request->wantsJson()) {
+            return response()->json($payments);
+        }
+
+        return view('payments.index', [
+            'payments' => $payments,
+            'filters' => $request->only(['status', 'agreement_id']),
+        ]);
+    }
+
+    /**
+     * Display the specified payment.
+     */
+    public function show(Request $request, Payment $payment): View|JsonResponse
+    {
+        $this->authorize('view', $payment);
+
+        $payment->load(['agreement', 'completedBy']);
+
+        if ($request->wantsJson()) {
+            return response()->json($payment);
+        }
+
+        return view('payments.show', ['payment' => $payment]);
+    }
+
+    /**
+     * Mark a scheduled payment as completed.
+     */
+    public function complete(
+        CompletePaymentRequest $request,
+        Payment $payment,
+        CompletePaymentAction $action
+    ): RedirectResponse|JsonResponse {
+        $this->authorize('complete', $payment);
+
+        $paidDate = $request->filled('paid_date')
+            ? Carbon::parse($request->input('paid_date'))
+            : now();
+
+        $completedPayment = $action->execute(
+            payment: $payment,
+            user: $request->user(),
+            invoiceNumber: $request->validated('invoice_number'),
+            paidDate: $paidDate
+        );
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Payment marked as completed successfully.',
+                'payment' => $completedPayment->fresh(['agreement', 'completedBy']),
+            ]);
+        }
+
+        return redirect()->route('payments.show', $payment)
+            ->with('success', 'Payment marked as completed successfully.');
+    }
+
+    /**
+     * Cancel a pending scheduled payment.
+     */
+    public function cancel(Request $request, Payment $payment): RedirectResponse|JsonResponse
+    {
+        $this->authorize('cancel', $payment);
+
+        if ($payment->status === PaymentStatus::COMPLETED) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'Completed payments cannot be cancelled.'], 422);
             }
+            return back()->withErrors(['status' => 'Completed payments cannot be cancelled.']);
         }
-        
-        Payment::insert($update_array);
-        return $update_array;
+
+        $payment->update([
+            'status' => PaymentStatus::CANCELLED,
+            'remarks' => trim(($payment->remarks ? $payment->remarks . "\n" : '') . '[Cancelled by user: ' . ($request->user()?->name ?? 'System') . ']'),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Payment cancelled successfully.',
+                'payment' => $payment->fresh(),
+            ]);
+        }
+
+        return redirect()->route('payments.show', $payment)
+            ->with('success', 'Payment cancelled successfully.');
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Alias for due payments.
      */
-    public function create()
+    public function due(Request $request): View|JsonResponse
     {
-        //
+        $request->merge(['status' => 'overdue']);
+        return $this->index($request);
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Alias for completed payments.
      */
-    public function store(Request $request)
+    public function completed(Request $request): View|JsonResponse
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Payment $payment)
-    {
-        return view('payments.show',['payment'=>$payment]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Payment $payment)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Payment $payment)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Payment $payment)
-    {
-        //
+        $request->merge(['status' => 'completed']);
+        return $this->index($request);
     }
 }

@@ -1,116 +1,156 @@
-# Laravel Inventory Management System
+# Enterprise Inventory Management & Asset Tracking System
 
-This project is an Inventory Management System developed using the Laravel framework (version 8). It provides a web-based interface to manage and track various assets and inventory items within an organization. The system is designed to help keep a detailed record of IT equipment, consumables, agreements, and other related resources.
+A modernized, enterprise-grade IT Inventory Management, Asset Lifecycle Tracking, Consumables Stock Ledger, and Vendor Contract Administration platform built on **Laravel 11/13**, **Tailwind CSS**, **Vite**, and **PHP 8.2+**.
 
-Built in 2019, this application demonstrates a comprehensive approach to inventory control, including features for authentication, data management, and activity tracking.
+---
 
-## Key Features
+## Key Modernized Architecture & Features
 
-*   **User Management:** Secure user registration and login functionality.
-*   **Asset Tracking:** Manage and track various types of assets including:
-    *   Desktops
-    *   Laptops
-    *   Servers
-    *   Storage Devices
-    *   General Devices (Printers, Network equipment, etc.)
-*   **Consumables Management:** Keep track of consumable items.
-*   **Agreement Management:** Store and manage contracts and agreements related to assets or services.
-*   **Inventory Categorization:**
-    *   Device Categories (Devcats)
-    *   Manufacturers
-    *   Locations
-*   **Financial Tracking:** Record payments associated with assets or agreements.
-*   **File Attachments:** Ability to attach files (e.g., invoices, warranty documents) to relevant records.
-*   **Task Management:** Assign and track tasks related to inventory management.
-*   **Official Records & Developer Info:** Maintain records of officials and developers associated with assets.
-*   **Data Export:** Export data to Excel format (inferred from `maatwebsite/excel` dependency).
-*   **Activity Logging:** Track significant actions performed by users within the system (inferred from `spatie/laravel-activitylog` dependency).
-*   **Responsive UI:** User interface built with Bootstrap, ensuring compatibility across devices.
-*   **Data Presentation:** Utilizes Datatables.js for efficient display and filtering of tabular data.
+- **Unified Asset Model**: Single consolidated asset repository with polymorphic classification (`laptop`, `desktop`, `server`, `switch`, `storage`, `other`), specification metadata, and strict lifecycle state machines (`in_stock`, `in_use`, `under_maintenance`, `decommissioned`).
+- **Chain-of-Custody Assignment Tracking**: Explicit asset assignment history linking assets to staff officials with condition-out/condition-in inspection logs, auto-closing previous assignments upon reassignment.
+- **Immutable Stock Ledger**: Append-only transaction log (`entries`) with pessimistic database locking (`lockForUpdate`) and idempotency keys to prevent race conditions and duplicate deductions.
+- **Automated Milestone Payment Schedules**: Idempotent milestone billing generation supporting monthly, quarterly, semi-annual, and annual frequencies with progressive `paid_till` reconciliation.
+- **6-Role Granular Permission Matrix (RBAC)**: Policy-backed authorization for `Admin`, `Inventory Manager`, `Stock Operator`, `Finance Operator`, `Auditor`, and `Viewer`.
+- **Personnel PII Encryption**: Synthetic-ready personnel models with field-level encryption for sensitive contact records and encrypted personal identity fields.
+- **Private & Secure Document Vault**: Multi-disk private storage service with MIME validation, randomized hash naming, and time-limited authenticated access streams.
+- **Tabular Data Exports**: Streamed Excel/CSV generation (`AssetsExport`, `AgreementsExport`) via `maatwebsite/excel` supporting filtered scopes and field formatting.
+- **Enterprise Activity Logging**: Complete audit trail recording actors, subjects, state diffs, and timestamped lifecycle events powered by `spatie/laravel-activitylog`.
+- **Read-Only Legacy ETL Importer**: Resilient 7-table data migration command with dry-run simulations, checksum verification, and resume checkpoints (`php artisan inventory:import-legacy`).
 
-## Technologies Used
+---
 
-*   **Backend:**
-    *   PHP (Version ^7.3 || ^8.0)
-    *   Laravel Framework (Version ^8.12)
-    *   Key PHP Packages:
-        *   `laravel/ui`: For authentication scaffolding.
-        *   `maatwebsite/excel`: For Excel export functionality.
-        *   `spatie/laravel-activitylog`: For recording user activity.
-        *   `fideloper/proxy`: For handling proxy server configurations.
-        *   `fruitcake/laravel-cors`: For Cross-Origin Resource Sharing (CORS) headers.
-        *   `guzzlehttp/guzzle`: For making HTTP requests.
-*   **Frontend:**
-    *   Bootstrap
-    *   JavaScript
-    *   Datatables.js
-*   **Database:**
-    *   Compatible with MySQL, PostgreSQL, SQLite, SQL Server (as per Laravel's default capabilities). The specific database used would be configured in the `.env` file.
-*   **Development & Testing:**
-    *   Composer: For PHP dependency management.
-    *   NPM: For frontend dependency management.
-    *   PHPUnit: For unit and feature testing.
+## Technology Stack
 
-## Installation Instructions
+| Layer | Technologies |
+| :--- | :--- |
+| **Backend Framework** | Laravel 11 / Laravel 13 on PHP 8.2+ (tested up to PHP 8.4) |
+| **Database** | MySQL 8.0+ / PostgreSQL 15+ / SQLite 3 (Default local/testing) |
+| **Frontend & Bundling** | Vite, Tailwind CSS v4, Blade, Livewire Flux, Alpine.js |
+| **Excel & Exporting** | `maatwebsite/excel` |
+| **Audit & Logging** | `spatie/laravel-activitylog` |
+| **Testing Engine** | PHPUnit 11/12, Orchestra Testbench |
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/your-repository-name.git
-    cd your-repository-name
-    ```
-    *(Replace `https://github.com/your-username/your-repository-name.git` and `your-repository-name` with the actual URL and project directory name if different)*
+---
 
-2.  **Install PHP Dependencies:**
-    ```bash
-    composer install
-    ```
+## Quick Start & Installation
 
-3.  **Create Environment File:**
-    Copy the example environment file and then generate the application key.
-    ```bash
-    cp .env.example .env
-    php artisan key:generate
-    ```
+### 1. Prerequisites
+- PHP `>= 8.2` with `mbstring`, `pdo`, `openssl`, `bcmath`, `xml`, `zip` extensions.
+- Composer 2.x
+- Node.js `>= 18.x` & NPM
 
-4.  **Configure Environment:**
-    Open the `.env` file in a text editor and update the following settings:
-    *   `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`: Configure your database connection details.
-    *   `APP_URL`: Set this to the URL you will use to access the application (e.g., `http://localhost:8000`).
-    *   Other settings like mail driver, queue connection, etc., as needed.
-
-5.  **Run Database Migrations and Seeders:**
-    This will create the necessary database tables and populate them with initial data (if seeders are configured).
-    ```bash
-    php artisan migrate --seed
-    ```
-
-6.  **Install Frontend Dependencies:**
-    ```bash
-    npm install
-    ```
-
-7.  **Build Frontend Assets:**
-    ```bash
-    npm run dev
-    ```
-    (For development. For production, use `npm run prod`)
-
-8.  **Start the Development Server:**
-    ```bash
-    php artisan serve
-    ```
-    The application should now be accessible at the URL specified by `php artisan serve` (usually `http://127.0.0.1:8000` or `http://localhost:8000`).
-
-## Testing
-
-This project uses PHPUnit for automated testing. To run the test suite, execute the following command from the project's root directory:
-
+### 2. Clone and Setup Environment
 ```bash
-php artisan test
+# Clone the repository
+git clone https://github.com/gauravmeena0708/inventory-management-software-laravel.git
+cd inventory-management-software-laravel
+
+# Install PHP dependencies
+composer install
+
+# Install NPM dependencies
+npm install
+
+# Create environment configuration
+cp .env.example .env
+php artisan key:generate
 ```
 
-Make sure you have set up your testing environment correctly, which might include a separate testing database configured in `phpunit.xml` or your `.env.testing` file if applicable.
+### 3. Database Setup & Synthetic Fixtures
+Configure your database credentials in `.env` (or use the default SQLite database), then run migrations and synthetic seeders:
+
+```bash
+# Run database migrations and seed synthetic faker dataset
+php artisan migrate --seed
+```
+
+### 4. Build Assets & Start Development Server
+```bash
+# Terminal 1: Build frontend assets
+npm run dev
+
+# Terminal 2: Run Laravel development server
+php artisan serve
+```
+
+The application will be accessible at `http://127.0.0.1:8000`.
+
+---
+
+## Default Synthetic User Personas
+
+The synthetic database seeder (`FictionalDatabaseSeeder`) provisions 6 privacy-compliant role accounts (all default to password: `password`):
+
+| Email | Role | Granted Capabilities |
+| :--- | :--- | :--- |
+| `admin@inventory.local` | **Admin** | Full system access, user management, audit review, asset & financial mutation |
+| `manager@inventory.local` | **Inventory Manager** | Asset CRUD, staff assignments, consumable definitions, agreement management |
+| `stock@inventory.local` | **Stock Operator** | Post purchase & issue entries to stock ledger, view inventory balances |
+| `finance@inventory.local` | **Finance Operator** | Vendor agreements, generate payment schedules, complete & verify invoices |
+| `auditor@inventory.local` | **Auditor** | Read-only access across all modules, export reports, inspect activity log history |
+| `viewer@inventory.local` | **Viewer** | Basic read-only dashboard & asset listings, no mutation or export rights |
+
+---
+
+## Automated Test Suite
+
+The test suite covers unit and end-to-end feature workflows, authorization matrices, stock ledger concurrency, payment schedules, encrypted personnel, and the legacy ETL importer.
+
+```bash
+# Run the complete test suite
+php artisan test
+
+# Run specific test suites
+php artisan test --filter=EndToEndInventoryFlowTest
+php artisan test --filter=StockLedgerConcurrencyTest
+php artisan test --filter=AuthorizationPolicyTest
+php artisan test --filter=AgreementPaymentScheduleTest
+php artisan test --filter=LegacyImporterVerificationTest
+```
+
+---
+
+## Legacy Importer CLI Command
+
+The modernization engine includes a read-only ETL command to migrate legacy inventory data (servers, desktops, laptops, devices, storages, consumables, agreements, payments) into the unified modernized schema.
+
+```bash
+# 1. Run in dry-run simulation mode (no changes committed)
+php artisan inventory:import-legacy --dry-run
+
+# 2. Execute full migration run
+php artisan inventory:import-legacy
+
+# 3. Resume an interrupted import from the last successful checkpoint
+php artisan inventory:import-legacy --resume
+
+# 4. Verify reconciliation counts, financial parity, and stock integrity without importing
+php artisan inventory:import-legacy --verify
+```
+
+### Verification Metrics Checked by Importer
+- **Entity Parity**: Validates record counts across legacy and unified tables.
+- **Financial Parity**: Reconciles legacy payment totals with modernized payments.
+- **Stock Discrepancy Detection**: Validates ledger entry balances against cached stock totals.
+
+---
+
+## API & Web Endpoints
+
+### Core Resources
+- `/dashboard` — KPI metrics, asset allocation counters, stock alerts, overdue payment notices.
+- `/assets` — Unified asset management with type filtering (`laptop`, `desktop`, `server`, `switch`, `storage`).
+- `/assets/{asset}/assign` — Assign asset to official with condition logging.
+- `/assets/{asset}/return` — Return asset to stock with return notes and condition checks.
+- `/assets/{asset}/decommission` — Decommission asset from inventory.
+- `/consumables` & `/stock` — Consumables catalog and immutable stock ledger.
+- `/consumables/{consumable}/entries` — Post stock purchase, issue, or adjustment entry.
+- `/agreements` — Vendor contracts and AMC tracking.
+- `/payments` — Milestone payment schedules, due payment monitoring, and invoice completion.
+- `/assets/export` & `/agreements/export` — Streamed Excel tabular data exports.
+
+---
 
 ## License
 
-This Inventory Management System is open-sourced software licensed under the [MIT License](LICENSE).
+This software is open-sourced under the [MIT License](LICENSE).

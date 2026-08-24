@@ -6,7 +6,7 @@
 
 **Architecture:** Domain-driven service layer separating business rules from HTTP controllers; immutable ledgers with pessimistic database locking (`lockForUpdate`) for inventory; deterministic schedule generation for vendor agreements; application-owned interface boundaries for audit logging, exports, and private attachments; and a dual-connection read-only legacy importer storing unmapped source data in `legacy_payload`.
 
-**Tech Stack:** PHP 8.2+, Laravel 11.x, MySQL 8.0+, Redis (for cache/queues/locks), Tailwind CSS 3.4+, Alpine.js 3.x, Vite, Spatie Activitylog v4+, Maatwebsite Excel v3.1+, PHPUnit / Pest.
+**Tech Stack:** The replaceable platform baseline currently selects PHP 8.4+, Laravel 13.x, MySQL 8.0+, Redis (for cache/queues/locks), the official Laravel Livewire starter kit, Tailwind CSS 4+, Vite 8+, Spatie Activitylog v5+, Maatwebsite Excel v4+, and PHPUnit 12+.
 
 **Spec:** [`docs/superpowers/specs/2026-08-24-inventory-modernization-design.md`](file:///C:/Users/IT/Documents/GitHub/inventory-management-software-laravel/docs/superpowers/specs/2026-08-24-inventory-modernization-design.md)
 
@@ -113,7 +113,7 @@ app/
 - Test: `tests/Unit/PlatformBaselineTest.php`
 
 **Interfaces:**
-- Produces: Clean Laravel 11 bootstrap configuration, database configuration supporting both `mysql` and read-only `legacy` connections, and runtime baseline test.
+- Produces: Clean Laravel 13 bootstrap configuration, database configuration supporting both `mysql` and read-only `legacy` connections, and runtime baseline test.
 
 - [ ] **Step 1: Write baseline requirement test**
 
@@ -128,7 +128,7 @@ class PlatformBaselineTest extends TestCase
 {
     public function test_runtime_and_connections_configured(): void
     {
-        $this->assertGreaterThanOrEqual(80200, PHP_VERSION_ID, 'PHP version must be >= 8.2');
+        $this->assertGreaterThanOrEqual(80400, PHP_VERSION_ID, 'PHP version must be >= 8.4');
         $this->assertArrayHasKey('legacy', config('database.connections'), 'Legacy connection must be defined');
         $this->assertTrue(config('database.connections.legacy.read_only') ?? true);
     }
@@ -136,7 +136,7 @@ class PlatformBaselineTest extends TestCase
 ```
 
 - [ ] **Step 2: Update `composer.json` and `package.json`**
-Remove legacy packages (`fideloper/proxy`, `fruitcake/laravel-cors`, `facade/ignition`, `laravel/ui`, `laravel-mix`). Target `php: ^8.2`, `laravel/framework: ^11.0`, `spatie/laravel-activitylog: ^4.8`, `maatwebsite/excel: ^3.1.55`, `laravel/breeze: ^2.0`, Vite, Tailwind CSS 3.4+, and Alpine.js.
+Remove legacy packages (`fideloper/proxy`, `fruitcake/laravel-cors`, `facade/ignition`, `laravel/ui`, `laravel-mix`). Apply the selected platform baseline: PHP 8.4+, Laravel 13, the official Livewire starter-kit dependency set, Spatie Activitylog v5+, Maatwebsite Excel v4+, Tailwind CSS 4+, and Vite 8+.
 
 - [ ] **Step 3: Configure `bootstrap/app.php` and dual database connections**
 Configure `config/database.php` with a standard `mysql` connection and a read-only `legacy` connection.

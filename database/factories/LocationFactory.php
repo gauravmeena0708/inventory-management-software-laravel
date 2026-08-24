@@ -17,12 +17,16 @@ class LocationFactory extends Factory
     /**
      * Define the model's default state.
      *
-     * @return array
+     * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         return [
-            //
+            'name' => $this->faker->city() . ' Office',
+            'sublocation' => 'Room ' . $this->faker->numberBetween(100, 999),
+            'building' => 'Building ' . $this->faker->randomLetter(),
+            'floor' => (string) $this->faker->numberBetween(1, 10),
+            'description' => $this->faker->sentence(),
         ];
     }
 }

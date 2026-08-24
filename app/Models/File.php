@@ -2,21 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
-
-class File extends Model
+class File extends FileRecord
 {
-    use HasFactory;
-    use LogsActivity;
-    protected static $logFillable = true;
-
-    protected $fillable = [
-        'name',
-        'efile',
-        'physical',
-        'pfile',
-        'subject'
-    ];
+    /**
+     * Backward-compatible alias model for FileRecord.
+     */
 }

@@ -2,121 +2,128 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Entry;
+use App\Enums\StockEntryType;
+use App\Exceptions\InsufficientStockException;
+use App\Http\Requests\StoreEntryRequest;
 use App\Models\Consumable;
+use App\Models\Entry;
+use App\Models\Official;
+use App\Services\Inventory\PostStockEntryAction;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class EntryController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-    
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Display a listing of the stock ledger entries.
      */
-    public function index()
+    public function index(Request $request): View|JsonResponse
     {
-        $entries = Entry::latest()->get();
-        return view('entries.index',['entries'=>$entries]);
-    }
+        $this->authorize('viewAny', Consumable::class);
 
-    public function purchase() 
-    {
-        $entries = Entry::where('type',0)->latest()->get();
-        return view('entries.index',['entries'=>$entries]);
-    }
+        $query = Entry::query()->with(['consumable', 'recipient', 'recorder']);
 
-    public function issue() 
-    {
-        $entries = Entry::where('type',1)->latest()->get();
-        return view('entries.index',['entries'=>$entries]);
-    }
-    
-    public function consumable_all(Consumable $consumable) 
-    {
-        $entries = Entry::where('consumable_id',$consumable->id)->latest()->get();
-        return view('entries.index',['entries'=>$entries]);
-    }
-    
-    public function consumable_purchase(Consumable $consumable) 
-    {
-        $entries = Entry::where('type',0)->where('consumable_id',$consumable->id)->latest()->get();
-        return view('entries.index',['entries'=>$entries]);
-    }
-    
-    public function consumable_issue(Consumable $consumable) 
-    {
-        $entries = Entry::where('type',1)->where('consumable_id',$consumable->id)->latest()->get();
-        return view('entries.index',['entries'=>$entries]);
+        if ($request->filled('consumable_id')) {
+            $query->where('consumable_id', $request->input('consumable_id'));
+        }
+
+        if ($request->filled('type')) {
+            $query->where('type', $request->input('type'));
+        }
+
+        $entries = $query->latest('id')->paginate(25)->withQueryString();
+
+        if ($request->wantsJson()) {
+            return response()->json($entries);
+        }
+
+        return view('stock.index', [
+            'entries' => $entries,
+            'consumables' => Consumable::orderBy('name')->get(),
+            'officials' => Official::orderBy('name')->get(),
+            'filters' => $request->only(['consumable_id', 'type']),
+        ]);
     }
 
     /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Store a new stock ledger entry (purchase, issue, adjustment).
      */
-    public function create()
-    {
-        //
+    public function store(
+        StoreEntryRequest $request,
+        PostStockEntryAction $action,
+        ?Consumable $consumable = null
+    ): RedirectResponse|JsonResponse {
+        $this->authorize('postEntry', Consumable::class);
+
+        $consumableId = $consumable?->id ?? $request->input('consumable_id');
+        if (!$consumableId) {
+            if ($request->wantsJson()) {
+                return response()->json(['error' => 'A valid consumable ID is required.'], 422);
+            }
+            return back()->withErrors(['consumable_id' => 'A valid consumable ID is required.']);
+        }
+
+        /** @var Consumable $targetConsumable */
+        $targetConsumable = Consumable::findOrFail($consumableId);
+
+        $rawType = $request->input('type');
+        $type = $rawType instanceof StockEntryType ? $rawType : StockEntryType::from($rawType);
+
+        $quantity = (int) $request->input('quantity');
+        $recipient = $request->filled('recipient_official_id')
+            ? Official::find($request->input('recipient_official_id'))
+            : null;
+
+        try {
+            $entry = $action->execute(
+                consumable: $targetConsumable,
+                type: $type,
+                quantity: $quantity,
+                recipient: $recipient,
+                user: $request->user(),
+                remarks: $request->input('remarks'),
+                idempotencyKey: $request->input('idempotency_key')
+            );
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'Stock entry recorded successfully.',
+                    'entry' => $entry->fresh(['consumable', 'recipient', 'recorder']),
+                    'stock_after' => $entry->stock_after,
+                ], 201);
+            }
+
+            return redirect()->route('consumables.show', $targetConsumable)
+                ->with('success', 'Stock entry successfully recorded.');
+        } catch (InsufficientStockException $e) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'error' => 'Insufficient stock for this operation.',
+                    'message' => $e->getMessage(),
+                    'available' => $e->getAvailable(),
+                    'requested' => $e->getRequested(),
+                ], 422);
+            }
+
+            return back()->withErrors(['quantity' => $e->getMessage()])->withInput();
+        }
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Display the specified stock entry.
      */
-    public function store(Request $request)
+    public function show(Request $request, Entry $entry): View|JsonResponse
     {
-        //
-    }
+        $this->authorize('viewAny', Consumable::class);
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Entry  $entry
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Entry $entry)
-    {
-        //
-    }
+        $entry->load(['consumable', 'recipient', 'recorder']);
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Entry  $entry
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Entry $entry)
-    {
-        //
-    }
+        if ($request->wantsJson()) {
+            return response()->json($entry);
+        }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Entry  $entry
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Entry $entry)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Entry  $entry
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Entry $entry)
-    {
-        //
+        return view('stock.show', ['entry' => $entry]);
     }
 }

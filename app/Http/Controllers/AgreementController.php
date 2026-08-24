@@ -2,145 +2,189 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Agreement;
-use Illuminate\Http\Request;
+use App\Contracts\TabularExporter;
 use App\Exports\AgreementsExport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Http\Requests\StoreAgreementRequest;
+use App\Http\Requests\UpdateAgreementRequest;
+use App\Models\Agreement;
+use App\Models\FileRecord;
+use App\Services\Agreements\GeneratePaymentScheduleAction;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AgreementController extends Controller
 {
     /**
-     * Create a new controller instance.
-     *
-     * @return void
+     * Display a listing of agreements.
      */
-    public function __construct()
+    public function index(Request $request): View|JsonResponse
     {
-        $this->middleware('auth');
-    }
+        $this->authorize('viewAny', Agreement::class);
 
-    /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function index()
-    {
-        $agreements = Agreement::get();
-        return view('agreements.index',['agreements'=>$agreements]);
-    }
+        $query = Agreement::query()->withCount('payments');
 
-    public function expired()
-    {
-        $agreements = Agreement::where('expiry', '<' , now())->get();
-        return view('agreements.index',['agreements'=>$agreements]);
-    }
+        if ($request->input('filter') === 'expired') {
+            $query->expired();
+        } elseif ($request->input('filter') === 'due' || $request->input('filter') === 'expiring_soon') {
+            $query->expiringSoon(180);
+        }
 
-    public function due()
-    {
-        $agreements = Agreement::where('expiry', '<' , now()->addDays(180))->where('expiry', '>' , now())->get();
-        return view('agreements.index',['agreements'=>$agreements]);
-    }
+        if ($request->filled('search')) {
+            $term = $request->input('search');
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('agency', 'like', "%{$term}%")
+                    ->orWhere('type', 'like', "%{$term}%");
+            });
+        }
 
-    public function export() 
-    {
-        return Excel::download(new AgreementsExport, 'agreements.xlsx');
-    }
+        $agreements = $query->latest('id')->paginate(20)->withQueryString();
 
+        if ($request->wantsJson()) {
+            return response()->json($agreements);
+        }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        $agreements = Agreement::latest()->take(5)->get();
-        return view('agreements.create',['agreements'=>$agreements]);
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        $input = $request->all();
-
-        $validated = $request->validate([
-            'name'=>'required|min:5',
-            'agency'=>'required|min:5',
-            'file'=>'required|min:5',
-            'efile'=>'required|min:5',
-            'type'=>'required|in:Service,Product',
-            'annual_cost'=>'required',
-            'frequency'=>'required',
-            'type'=>'required|in:Service,Product',
-            'expiry'=>'required|date|before:5 years|after:5 years ago',
-            'paid_till' =>'required|date|before:5 years|after:5 years ago'
+        return view('agreements.index', [
+            'agreements' => $agreements,
+            'filters' => $request->only(['filter', 'search']),
         ]);
-        Agreement::create($validated);
-        
-        //return redirect()->route('categories.index');
-        return back()->with('success','Agreement created Successfull');
     }
 
     /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Agreement  $agreement
-     * @return \Illuminate\Http\Response
+     * Show the form for creating a new agreement.
      */
-    public function show(Agreement $agreement)
+    public function create(): View
     {
-		return view('agreements.show',['agreement'=>$agreement]);
+        $this->authorize('create', Agreement::class);
+
+        return view('agreements.create', [
+            'files' => FileRecord::orderBy('name')->get(),
+        ]);
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Agreement  $agreement
-     * @return \Illuminate\Http\Response
+     * Store a newly created agreement and automatically generate its payment schedule.
      */
-    public function edit(Agreement $agreement)
-    {
-        return view('agreements.edit', ['agreement'=>$agreement]);
+    public function store(
+        StoreAgreementRequest $request,
+        GeneratePaymentScheduleAction $scheduleAction
+    ): RedirectResponse|JsonResponse {
+        $validated = $request->validated();
+        $agreement = Agreement::create($validated);
+
+        // Automatically generate idempotent milestone payment schedule if anchor date & interval are defined
+        if ($agreement->billing_anchor_date && $agreement->billing_interval_months && $agreement->expiry) {
+            $scheduleAction->execute($agreement);
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Agreement created and payment schedule generated successfully.',
+                'agreement' => $agreement->fresh(['payments']),
+            ], 201);
+        }
+
+        return redirect()->route('agreements.show', $agreement)
+            ->with('success', 'Agreement and payment schedule created successfully.');
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Agreement  $agreement
-     * @return \Illuminate\Http\Response
+     * Display the specified agreement.
      */
-    public function update(Request $request, Agreement $agreement)
+    public function show(Request $request, Agreement $agreement): View|JsonResponse
     {
-        //$input = $request->all();
+        $this->authorize('view', $agreement);
 
-        $validated = $request->validate([
-            'name'=>'required|min:5',
-            'agency'=>'required|min:5',
-            'expiry'=>'required|date|before:5 years|after:5 years ago',
-            'paid_till' =>'required|date|before:5 years|after:5 years ago'
+        $agreement->load([
+            'payments' => fn ($q) => $q->orderBy('due_date'),
+            'file',
+            'attachments',
         ]);
 
-        $agreement->update($validated);
-        //return $validated;
-        //return redirect()->route('categories.index');
-        return back()->with('success','Agreement updated Successfull');
+        if ($request->wantsJson()) {
+            return response()->json($agreement);
+        }
+
+        return view('agreements.show', ['agreement' => $agreement]);
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Agreement  $agreement
-     * @return \Illuminate\Http\Response
+     * Show the form for editing the specified agreement.
      */
-    public function destroy(Agreement $agreement)
+    public function edit(Agreement $agreement): View
     {
-        //
+        $this->authorize('update', $agreement);
+
+        return view('agreements.edit', [
+            'agreement' => $agreement,
+            'files' => FileRecord::orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Update the specified agreement in storage.
+     */
+    public function update(UpdateAgreementRequest $request, Agreement $agreement): RedirectResponse|JsonResponse
+    {
+        $agreement->update($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Agreement updated successfully.',
+                'agreement' => $agreement->fresh(),
+            ]);
+        }
+
+        return redirect()->route('agreements.show', $agreement)
+            ->with('success', 'Agreement updated successfully.');
+    }
+
+    /**
+     * Remove the specified agreement from storage.
+     */
+    public function destroy(Request $request, Agreement $agreement): RedirectResponse|JsonResponse
+    {
+        $this->authorize('delete', $agreement);
+
+        $agreement->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Agreement deleted successfully.']);
+        }
+
+        return redirect()->route('agreements.index')
+            ->with('success', 'Agreement deleted successfully.');
+    }
+
+    /**
+     * Export agreements to an Excel spreadsheet.
+     */
+    public function export(Request $request, TabularExporter $exporter): BinaryFileResponse
+    {
+        $this->authorize('export', Agreement::class);
+
+        $query = Agreement::query();
+
+        if ($request->input('filter') === 'expired') {
+            $query->expired();
+        } elseif ($request->input('filter') === 'due' || $request->input('filter') === 'expiring_soon') {
+            $query->expiringSoon(180);
+        }
+
+        if ($request->filled('search')) {
+            $term = $request->input('search');
+            $query->where(function ($q) use ($term) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('agency', 'like', "%{$term}%")
+                    ->orWhere('type', 'like', "%{$term}%");
+            });
+        }
+
+        $filename = 'agreements-' . now()->format('Y-m-d-His') . '.xlsx';
+
+        return $exporter->download(new AgreementsExport($query), $filename);
     }
 }

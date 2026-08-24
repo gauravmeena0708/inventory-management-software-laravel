@@ -3,19 +3,20 @@
 namespace Tests\Unit;
 
 use App\Enums\UserRole;
+use Illuminate\Foundation\Application;
 use PHPUnit\Framework\TestCase;
 
 class PlatformBaselineTest extends TestCase
 {
     /**
-     * Test PHP version meets the minimum requirement of PHP 8.2+.
+     * Test PHP version meets the selected platform baseline of PHP 8.4+.
      */
     public function test_php_version_meets_minimum_requirement(): void
     {
         $this->assertGreaterThanOrEqual(
-            80200,
+            80400,
             PHP_VERSION_ID,
-            'PHP version must be at least 8.2.0 (PHP_VERSION_ID >= 80200)'
+            'PHP version must be at least 8.4.0 (PHP_VERSION_ID >= 80400)'
         );
     }
 
@@ -24,6 +25,8 @@ class PlatformBaselineTest extends TestCase
      */
     public function test_database_config_has_legacy_read_only_connection(): void
     {
+        new Application(dirname(__DIR__, 2));
+
         $config = require __DIR__ . '/../../config/database.php';
 
         $this->assertArrayHasKey('connections', $config);
