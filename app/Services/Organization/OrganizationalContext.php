@@ -84,4 +84,35 @@ class OrganizationalContext
     {
         Session::forget(self::SESSION_KEY);
     }
+
+    /**
+     * Determine if a user has write access to a given organizational unit.
+     */
+    public function canWrite(User $user, int $unitId): bool
+    {
+        if ($user->hasRole(\App\Enums\UserRole::ADMIN)) {
+            return true;
+        }
+
+        $memberships = $user->activeOrganizationalUnits;
+
+        foreach ($memberships as $membership) {
+            if ($membership->pivot->write_scope === 'none') {
+                continue;
+            }
+
+            if ($membership->id === $unitId) {
+                return true;
+            }
+
+            if ($membership->pivot->write_scope === 'descendants') {
+                $targetUnit = OrganizationalUnit::find($unitId);
+                if ($targetUnit && str_starts_with($targetUnit->path, $membership->path)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }

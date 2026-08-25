@@ -163,6 +163,24 @@ class Asset extends Model
     }
 
     /**
+     * Get all placement history records for this asset.
+     */
+    public function placements(): HasMany
+    {
+        return $this->hasMany(AssetPlacement::class, 'asset_id');
+    }
+
+    /**
+     * Get the current (open) placement for this asset.
+     */
+    public function currentPlacement(): HasOne
+    {
+        return $this->hasOne(AssetPlacement::class, 'asset_id')
+            ->whereNull('removed_at')
+            ->latestOfMany('placed_at');
+    }
+
+    /**
      * Scope a query to only include assets of a given type.
      */
     public function scopeType(Builder $query, AssetType|string $type): Builder

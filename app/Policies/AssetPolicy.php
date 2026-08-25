@@ -35,11 +35,30 @@ class AssetPolicy
     }
 
     /**
+     * Helper to verify organizational write access.
+     */
+    protected function checkWriteScope(User $user, mixed $asset): bool
+    {
+        if (! $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER)) {
+            return false;
+        }
+
+        // If the asset has no unit assigned yet, default to allowing if role permits
+        // Alternatively, require it to be assigned.
+        if (! $asset || ! $asset->organizational_unit_id) {
+            return true;
+        }
+
+        $context = app(\App\Services\Organization\OrganizationalContext::class);
+        return $context->canWrite($user, $asset->organizational_unit_id);
+    }
+
+    /**
      * Determine whether the user can update the asset.
      */
     public function update(User $user, mixed $asset = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->checkWriteScope($user, $asset);
     }
 
     /**
@@ -47,7 +66,7 @@ class AssetPolicy
      */
     public function delete(User $user, mixed $asset = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->checkWriteScope($user, $asset);
     }
 
     /**
@@ -55,7 +74,7 @@ class AssetPolicy
      */
     public function assign(User $user, mixed $asset = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->checkWriteScope($user, $asset);
     }
 
     /**
@@ -63,7 +82,7 @@ class AssetPolicy
      */
     public function return(User $user, mixed $asset = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->checkWriteScope($user, $asset);
     }
 
     /**
@@ -71,7 +90,33 @@ class AssetPolicy
      */
     public function decommission(User $user, mixed $asset = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->checkWriteScope($user, $asset);
+    }
+
+    /**
+     * Determine whether the user can relocate the asset (Asset Placement).
+     */
+    public function relocate(User $user, mixed $asset, \App\Models\Location $destination): bool
+    {
+        if (! $this->checkWriteScope($user, $asset)) {
+            return false;
+        }
+
+        // Must also have write scope on destination location's organizational unit.
+        if ($destination && $destination->site && $destination->site->organizationalUnits->isNotEmpty()) {
+            $context = app(\App\Services\Organization\OrganizationalContext::class);
+            $hasDestWrite = false;
+            foreach ($destination->site->organizationalUnits as $unit) {
+                if ($context->canWrite($user, $unit->id)) {
+                    $hasDestWrite = true;
+                    break;
+                }
+            }
+            return $hasDestWrite;
+        }
+
+        // If the destination isn't mapped to an org unit, we allow it (for legacy).
+        return true;
     }
 
     /**
