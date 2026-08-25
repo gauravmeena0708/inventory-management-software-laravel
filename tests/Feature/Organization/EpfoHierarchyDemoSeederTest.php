@@ -10,6 +10,7 @@ use App\Models\User;
 use Database\Seeders\EpfoHierarchyDemoSeeder;
 use Database\Seeders\EpfoNdcHierarchySeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class EpfoHierarchyDemoSeederTest extends TestCase
@@ -55,6 +56,16 @@ class EpfoHierarchyDemoSeederTest extends TestCase
             'organizational_unit_id' => $root->id,
             'read_scope' => 'descendants',
             'write_scope' => 'descendants',
+        ]);
+
+        $regionalOfficer = User::where('email', 'delhi.regional.officer@example.test')->firstOrFail();
+        $this->assertTrue(Hash::check('regional-demo-password', $regionalOfficer->password));
+        $this->assertSame($region->id, $regionalOfficer->default_organizational_unit_id);
+        $this->assertDatabaseHas('organizational_unit_user', [
+            'user_id' => $regionalOfficer->id,
+            'organizational_unit_id' => $region->id,
+            'read_scope' => 'descendants',
+            'write_scope' => 'local',
         ]);
     }
 }

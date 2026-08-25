@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\LocationType;
 use App\Enums\OrganizationalUnitType;
+use App\Enums\UserRole;
 use App\Models\Location;
 use App\Models\OrganizationalUnit;
 use App\Models\Site;
@@ -130,6 +131,25 @@ class EpfoHierarchyDemoSeeder extends Seeder
             ]);
             $context->setDefaultUnit($admin, $root->id);
         }
+
+        $regionalOffice = $units['RO-DELHI'];
+        $regionalOfficer = User::query()->updateOrCreate(
+            ['email' => 'delhi.regional.officer@example.test'],
+            [
+                'name' => 'Delhi Regional Officer',
+                'password' => 'regional-demo-password',
+                'role' => UserRole::INVENTORY_MANAGER,
+            ]
+        );
+        $regionalOfficer->organizationalUnits()->syncWithoutDetaching([
+            $regionalOffice->id => [
+                'read_scope' => 'descendants',
+                'write_scope' => 'local',
+                'valid_from' => now(),
+                'valid_until' => null,
+            ],
+        ]);
+        $context->setDefaultUnit($regionalOfficer, $regionalOffice->id);
     }
 
     /**
