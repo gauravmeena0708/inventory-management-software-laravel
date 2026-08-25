@@ -223,4 +223,39 @@ class User extends Authenticatable
             UserRole::AUDITOR
         );
     }
+
+    /**
+     * The organizational units this user belongs to.
+     */
+    public function organizationalUnits(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(OrganizationalUnit::class)
+            ->withPivot(['read_scope', 'write_scope', 'valid_from', 'valid_until'])
+            ->withTimestamps();
+    }
+
+    /**
+     * The active organizational units this user belongs to.
+     */
+    public function activeOrganizationalUnits(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        $now = now();
+        return $this->organizationalUnits()
+            ->where(function ($query) use ($now) {
+                $query->whereNull('organizational_unit_user.valid_from')
+                      ->orWhere('organizational_unit_user.valid_from', '<=', $now);
+            })
+            ->where(function ($query) use ($now) {
+                $query->whereNull('organizational_unit_user.valid_until')
+                      ->orWhere('organizational_unit_user.valid_until', '>=', $now);
+            });
+    }
+
+    /**
+     * The default organizational unit for the user context.
+     */
+    public function defaultOrganizationalUnit(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(OrganizationalUnit::class, 'default_organizational_unit_id');
+    }
 }

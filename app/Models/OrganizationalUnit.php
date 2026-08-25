@@ -30,4 +30,11 @@ class OrganizationalUnit extends Model
     {
         return $this->hasMany(OrganizationalUnit::class, 'parent_id');
     }
+
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class)
+            ->withPivot(['read_scope', 'write_scope', 'valid_from', 'valid_until'])
+            ->withTimestamps();
+    }
 }
