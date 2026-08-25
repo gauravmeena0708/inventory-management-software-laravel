@@ -59,6 +59,7 @@ class Asset extends Model
         'legacy_file_reference',
         'remarks',
         'legacy_payload',
+        'organizational_unit_id',
     ];
 
     /**
@@ -109,6 +110,14 @@ class Asset extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    /**
+     * Get the organizational unit of the asset.
+     */
+    public function organizationalUnit(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
     }
 
     /**

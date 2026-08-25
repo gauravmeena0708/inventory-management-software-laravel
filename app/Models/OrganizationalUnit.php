@@ -51,6 +51,11 @@ class OrganizationalUnit extends Model
             ->withTimestamps();
     }
 
+    public function sites(): BelongsToMany
+    {
+        return $this->belongsToMany(Site::class, 'organizational_unit_site');
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);
