@@ -33,9 +33,37 @@
                 </form>
             </div>
 
-            <!-- Right Side: Quick Links, User Info & Logout -->
+            <!-- Right Side: Organization context, User Info & Logout -->
             <div class="flex items-center space-x-3 sm:space-x-4">
                 @auth
+                    @inject('organizationalNavigation', 'App\Services\Organization\OrganizationalNavigation')
+                    @inject('organizationalContext', 'App\Services\Organization\OrganizationalContext')
+                    @php
+                        $contextOptions = $organizationalNavigation->contexts(auth()->user());
+                        $activeOrganizationalContext = $organizationalContext->getActiveContext(auth()->user());
+                    @endphp
+                    @if ($contextOptions->count() > 1)
+                        <form method="POST" action="{{ route('organizational-context.update') }}" class="hidden md:block" data-testid="organizational-context-switcher">
+                            @csrf
+                            <label class="sr-only" for="organizational-context">Active organizational context</label>
+                            <select
+                                id="organizational-context"
+                                name="organizational_unit_id"
+                                class="max-w-56 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                onchange="this.form.submit()"
+                            >
+                                <option value="" disabled @selected(! $activeOrganizationalContext)>Select organizational context</option>
+                                @foreach ($contextOptions as $contextOption)
+                                    <option value="{{ $contextOption->id }}" @selected($activeOrganizationalContext?->id === $contextOption->id)>{{ $contextOption->name }}</option>
+                                @endforeach
+                            </select>
+                            <noscript><button class="btn btn-secondary ml-1" type="submit">Switch</button></noscript>
+                        </form>
+                    @elseif ($contextOptions->count() === 1)
+                        <a href="{{ route('organization.hierarchy') }}" class="hidden max-w-48 truncate text-xs font-semibold text-slate-600 hover:text-indigo-700 md:block" title="Active organizational context">
+                            {{ $activeOrganizationalContext?->name ?? $contextOptions->first()->name }}
+                        </a>
+                    @endif
                     <!-- User Profile Dropdown / Card -->
                     <div class="relative" x-data="{ dropdownOpen: false }">
                         <button 

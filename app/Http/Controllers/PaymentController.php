@@ -21,7 +21,9 @@ class PaymentController extends Controller
     {
         $this->authorize('viewAny', Payment::class);
 
-        $query = Payment::query()->with(['agreement', 'completedBy']);
+        $query = Payment::query()
+            ->visibleTo($request->user())
+            ->with(['agreement', 'completedBy']);
 
         $status = $request->input('status');
         if ($status === 'overdue') {
@@ -109,12 +111,13 @@ class PaymentController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['error' => 'Completed payments cannot be cancelled.'], 422);
             }
+
             return back()->withErrors(['status' => 'Completed payments cannot be cancelled.']);
         }
 
         $payment->update([
             'status' => PaymentStatus::CANCELLED,
-            'remarks' => trim(($payment->remarks ? $payment->remarks . "\n" : '') . '[Cancelled by user: ' . ($request->user()?->name ?? 'System') . ']'),
+            'remarks' => trim(($payment->remarks ? $payment->remarks."\n" : '').'[Cancelled by user: '.($request->user()?->name ?? 'System').']'),
         ]);
 
         if ($request->wantsJson()) {
@@ -134,6 +137,7 @@ class PaymentController extends Controller
     public function due(Request $request): View|JsonResponse
     {
         $request->merge(['status' => 'overdue']);
+
         return $this->index($request);
     }
 
@@ -143,6 +147,7 @@ class PaymentController extends Controller
     public function completed(Request $request): View|JsonResponse
     {
         $request->merge(['status' => 'completed']);
+
         return $this->index($request);
     }
 }

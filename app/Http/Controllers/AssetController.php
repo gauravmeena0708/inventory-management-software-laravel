@@ -7,12 +7,12 @@ use App\Exports\AssetsExport;
 use App\Http\Requests\StoreAssetRequest;
 use App\Http\Requests\UpdateAssetRequest;
 use App\Models\Asset;
-use App\Models\Location;
 use App\Models\Manufacturer;
 use App\Models\Official;
 use App\Services\Assets\AssignAssetAction;
 use App\Services\Assets\CreateAssetAction;
 use App\Services\Assets\UpdateAssetAction;
+use App\Services\Organization\OrganizationalNavigation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +28,14 @@ class AssetController extends Controller
     {
         $this->authorize('viewAny', Asset::class);
 
-        $query = Asset::query()->with(['manufacturer', 'location', 'assignedOfficial']);
+        $user = $request->user();
+        $query = Asset::query()
+            ->visibleTo($user)
+            ->with([
+                'manufacturer',
+                'location' => fn ($query) => $query->visibleTo($user),
+                'assignedOfficial' => fn ($query) => $query->visibleTo($user),
+            ]);
 
         if ($request->filled('type')) {
             $query->type($request->input('type'));
@@ -65,14 +72,15 @@ class AssetController extends Controller
     /**
      * Show the form for creating a new asset.
      */
-    public function create(): View
+    public function create(Request $request, OrganizationalNavigation $navigation): View
     {
         $this->authorize('create', Asset::class);
 
         return view('assets.create', [
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => $navigation->locations($request->user(), true),
+            'organizationalUnits' => $navigation->writableUnits($request->user()),
             'manufacturers' => Manufacturer::orderBy('name')->get(),
-            'officials' => Official::orderBy('name')->get(),
+            'officials' => Official::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -85,18 +93,22 @@ class AssetController extends Controller
         AssignAssetAction $assignAction
     ): RedirectResponse|JsonResponse {
         $validated = $request->validated();
+        $official = null;
+
+        if (! empty($validated['assigned_official_id'])) {
+            $official = Official::findOrFail($validated['assigned_official_id']);
+            $this->authorize('view', $official);
+        }
+
         $asset = $createAction->execute($validated, $request->user());
 
-        if (!empty($validated['assigned_official_id'])) {
-            $official = Official::find($validated['assigned_official_id']);
-            if ($official) {
-                $assignAction->execute(
-                    asset: $asset,
-                    official: $official,
-                    actor: $request->user(),
-                    remarks: 'Initial assignment on asset creation'
-                );
-            }
+        if ($official) {
+            $assignAction->execute(
+                asset: $asset,
+                official: $official,
+                actor: $request->user(),
+                remarks: 'Initial assignment on asset creation'
+            );
         }
 
         if ($request->wantsJson()) {
@@ -117,13 +129,14 @@ class AssetController extends Controller
     {
         $this->authorize('view', $asset);
 
+        $user = $request->user();
         $asset->load([
             'manufacturer',
-            'location',
-            'assignedOfficial',
-            'assignments.official',
+            'location' => fn ($query) => $query->visibleTo($user),
+            'assignedOfficial' => fn ($query) => $query->visibleTo($user),
+            'assignments.official' => fn ($query) => $query->visibleTo($user),
             'assignments.assignedBy',
-            'attachments',
+            'attachments' => fn ($query) => $query->visibleTo($user),
             'file',
         ]);
 
@@ -137,15 +150,15 @@ class AssetController extends Controller
     /**
      * Show the form for editing the specified asset.
      */
-    public function edit(Asset $asset): View
+    public function edit(Request $request, Asset $asset, OrganizationalNavigation $navigation): View
     {
         $this->authorize('update', $asset);
 
         return view('assets.edit', [
             'asset' => $asset,
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => $navigation->locations($request->user(), true),
             'manufacturers' => Manufacturer::orderBy('name')->get(),
-            'officials' => Official::orderBy('name')->get(),
+            'officials' => Official::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -194,7 +207,7 @@ class AssetController extends Controller
     {
         $this->authorize('export', Asset::class);
 
-        $query = Asset::query();
+        $query = Asset::query()->visibleTo($request->user());
 
         if ($request->filled('type')) {
             $query->type($request->input('type'));
@@ -216,8 +229,8 @@ class AssetController extends Controller
             $query->search($request->input('search'));
         }
 
-        $filename = 'assets-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'assets-'.now()->format('Y-m-d-His').'.xlsx';
 
-        return $exporter->download(new AssetsExport($query), $filename);
+        return $exporter->download(new AssetsExport($query, $request->user()), $filename);
     }
 }

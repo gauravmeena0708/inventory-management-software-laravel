@@ -23,7 +23,11 @@ class EntryController extends Controller
     {
         $this->authorize('viewAny', Consumable::class);
 
-        $query = Entry::query()->with(['consumable', 'recipient', 'recorder']);
+        $query = Entry::query()->with([
+            'consumable',
+            'recipient' => fn ($officialQuery) => $officialQuery->visibleTo($request->user()),
+            'recorder',
+        ]);
 
         if ($request->filled('consumable_id')) {
             $query->where('consumable_id', $request->input('consumable_id'));
@@ -42,7 +46,7 @@ class EntryController extends Controller
         return view('stock.index', [
             'entries' => $entries,
             'consumables' => Consumable::orderBy('name')->get(),
-            'officials' => Official::orderBy('name')->get(),
+            'officials' => Official::visibleTo($request->user())->orderBy('name')->get(),
             'filters' => $request->only(['consumable_id', 'type']),
         ]);
     }
@@ -58,10 +62,11 @@ class EntryController extends Controller
         $this->authorize('postEntry', Consumable::class);
 
         $consumableId = $consumable?->id ?? $request->input('consumable_id');
-        if (!$consumableId) {
+        if (! $consumableId) {
             if ($request->wantsJson()) {
                 return response()->json(['error' => 'A valid consumable ID is required.'], 422);
             }
+
             return back()->withErrors(['consumable_id' => 'A valid consumable ID is required.']);
         }
 

@@ -21,7 +21,13 @@ class TaskController extends Controller
     {
         $this->authorize('viewAny', Task::class);
 
-        $query = Task::query()->with(['assignedUser', 'file']);
+        $user = $request->user();
+        $query = Task::query()
+            ->visibleTo($user)
+            ->with([
+                'assignedUser',
+                'file' => fn ($fileQuery) => $fileQuery->visibleTo($user),
+            ]);
 
         $status = $request->input('status');
         if ($status === 'pending') {
@@ -64,13 +70,13 @@ class TaskController extends Controller
     /**
      * Show the form for creating a new task.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorize('create', Task::class);
 
         return view('tasks.create', [
             'users' => User::orderBy('name')->get(),
-            'files' => FileRecord::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -99,7 +105,10 @@ class TaskController extends Controller
     {
         $this->authorize('view', $task);
 
-        $task->load(['assignedUser', 'file']);
+        $task->load([
+            'assignedUser',
+            'file' => fn ($fileQuery) => $fileQuery->visibleTo($request->user()),
+        ]);
 
         if ($request->wantsJson()) {
             return response()->json($task);
@@ -111,14 +120,14 @@ class TaskController extends Controller
     /**
      * Show the form for editing the specified task.
      */
-    public function edit(Task $task): View
+    public function edit(Request $request, Task $task): View
     {
         $this->authorize('update', $task);
 
         return view('tasks.edit', [
             'task' => $task,
             'users' => User::orderBy('name')->get(),
-            'files' => FileRecord::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -163,6 +172,7 @@ class TaskController extends Controller
     public function pending(Request $request): View|JsonResponse
     {
         $request->merge(['status' => 'pending']);
+
         return $this->index($request);
     }
 
@@ -172,6 +182,7 @@ class TaskController extends Controller
     public function completed(Request $request): View|JsonResponse
     {
         $request->merge(['status' => 'completed']);
+
         return $this->index($request);
     }
 }

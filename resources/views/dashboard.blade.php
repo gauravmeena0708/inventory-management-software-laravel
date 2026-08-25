@@ -161,7 +161,7 @@
                 <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <div class="flex items-center space-x-2">
                         <div class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
-                        <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Action Center & Urgent Tasks</h2>
+                        <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Action Center &amp; Urgent Tasks</h2>
                     </div>
                     <span class="text-xs text-slate-400">Automated System Audits</span>
                 </div>

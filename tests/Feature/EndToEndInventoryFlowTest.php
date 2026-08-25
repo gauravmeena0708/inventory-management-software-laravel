@@ -2,12 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Contracts\TabularExporter;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Enums\PaymentStatus;
 use App\Enums\StockEntryType;
-use App\Enums\UserRole;
 use App\Exceptions\InsufficientStockException;
 use App\Exports\AgreementsExport;
 use App\Exports\AssetsExport;
@@ -19,7 +17,9 @@ use App\Models\Entry;
 use App\Models\Location;
 use App\Models\Manufacturer;
 use App\Models\Official;
+use App\Models\OrganizationalUnit;
 use App\Models\Payment;
+use App\Models\Site;
 use App\Models\User;
 use App\Services\Agreements\CompletePaymentAction;
 use App\Services\Agreements\GeneratePaymentScheduleAction;
@@ -28,9 +28,7 @@ use App\Services\Assets\ReturnAssetAction;
 use App\Services\Inventory\PostStockEntryAction;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Tests\TestCase;
 
 class EndToEndInventoryFlowTest extends TestCase
@@ -101,8 +99,21 @@ class EndToEndInventoryFlowTest extends TestCase
         // -------------------------------------------------------------------------
         // 2. Master Data Setup
         // -------------------------------------------------------------------------
+        $unit = OrganizationalUnit::factory()->create(['code' => 'E2E-NDC']);
+        $inventoryManager->organizationalUnits()->attach($unit->id, ['write_scope' => 'local']);
+        $financeOperator->organizationalUnits()->attach($unit->id, [
+            'read_scope' => 'local',
+            'write_scope' => 'local',
+        ]);
+        $site = Site::create([
+            'code' => 'E2E-SITE',
+            'name' => 'E2E NDC Site',
+            'is_active' => true,
+        ]);
+        $site->organizationalUnits()->attach($unit->id);
         $location = Location::create([
             'name' => 'HQ Server Room A',
+            'site_id' => $site->id,
             'building' => 'Building 1',
             'floor' => 'Ground',
             'sublocation' => 'Rack Row 3',
@@ -285,6 +296,7 @@ class EndToEndInventoryFlowTest extends TestCase
         // -------------------------------------------------------------------------
         // 5a. Finance Operator creates Agreement
         $agreementResponse = $this->actingAs($financeOperator)->post(route('agreements.store'), [
+            'organizational_unit_id' => $unit->id,
             'name' => 'Data Center Fiber Connectivity AMC 2026',
             'agency' => 'Metro Telecom Ltd',
             'type' => 'Telecom Infrastructure',
@@ -348,7 +360,7 @@ class EndToEndInventoryFlowTest extends TestCase
         // 6. Tabular Exports & Audit Log Verification
         // -------------------------------------------------------------------------
         // 6a. Verify Assets Export
-        $assetsExport = new AssetsExport();
+        $assetsExport = new AssetsExport(Asset::query(), $inventoryManager);
         $headings = $assetsExport->headings();
         $this->assertContains('Asset Tag', $headings);
         $this->assertContains('Serial Number', $headings);
@@ -362,7 +374,7 @@ class EndToEndInventoryFlowTest extends TestCase
         $this->assertSame('Decommissioned', $mappedAsset[3]);
 
         // 6b. Verify Agreements Export
-        $agreementsExport = new AgreementsExport();
+        $agreementsExport = new AgreementsExport;
         $agreementHeadings = $agreementsExport->headings();
         $this->assertContains('Agreement Name', $agreementHeadings);
         $this->assertContains('Annual Cost', $agreementHeadings);
@@ -536,8 +548,14 @@ class EndToEndInventoryFlowTest extends TestCase
     public function test_agreement_schedule_idempotency_and_payment_progression(): void
     {
         $finOp = User::factory()->financeOperator()->create();
+        $unit = OrganizationalUnit::factory()->create(['code' => 'E2E-PAYMENTS']);
+        $finOp->organizationalUnits()->attach($unit->id, [
+            'read_scope' => 'local',
+            'write_scope' => 'local',
+        ]);
 
         $agreement = Agreement::factory()->create([
+            'organizational_unit_id' => $unit->id,
             'annual_cost' => 60000.00,
             'billing_interval_months' => 6, // Semi-annual: 2 payments of 30,000
             'billing_anchor_date' => '2026-01-01',
@@ -559,7 +577,7 @@ class EndToEndInventoryFlowTest extends TestCase
         $this->assertCount(2, $agreement->payments()->get());
 
         // 3. Complete first milestone
-        $payment1 = $agreement->payments()->where('due_date', '2026-01-01')->firstOrFail();
+        $payment1 = $agreement->payments()->orderBy('due_date')->firstOrFail();
         $completeAction->execute(
             payment: $payment1,
             user: $finOp,
@@ -571,7 +589,7 @@ class EndToEndInventoryFlowTest extends TestCase
         $this->assertEquals('2026-01-01', $agreement->paid_till->format('Y-m-d'));
 
         // 4. Complete second milestone
-        $payment2 = $agreement->payments()->where('due_date', '2026-07-01')->firstOrFail();
+        $payment2 = $agreement->payments()->orderBy('due_date')->skip(1)->firstOrFail();
         $completeAction->execute(
             payment: $payment2,
             user: $finOp,

@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Models\Asset;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
@@ -15,10 +16,12 @@ class AssetsExport implements FromQuery, WithHeadings, WithMapping
 {
     use Exportable;
 
-    protected ?Builder $query;
+    protected Builder $query;
 
-    public function __construct(?Builder $query = null)
-    {
+    public function __construct(
+        Builder $query,
+        private readonly User $user
+    ) {
         $this->query = $query;
     }
 
@@ -27,8 +30,12 @@ class AssetsExport implements FromQuery, WithHeadings, WithMapping
      */
     public function query(): Builder
     {
-        return ($this->query ?? Asset::query())
-            ->with(['manufacturer', 'location', 'assignedOfficial'])
+        return $this->query
+            ->with([
+                'manufacturer',
+                'location' => fn ($query) => $query->visibleTo($this->user),
+                'assignedOfficial' => fn ($query) => $query->visibleTo($this->user),
+            ])
             ->orderBy('id', 'asc');
     }
 

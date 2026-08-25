@@ -2,9 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Enums\LocationType;
 use App\Enums\OrganizationalUnitType;
-use App\Models\Site;
+use App\Models\Location;
 use App\Models\OrganizationalUnit;
+use App\Models\Site;
 use App\Services\Organization\OrganizationalHierarchyService;
 use Illuminate\Database\Seeder;
 
@@ -16,7 +18,7 @@ class EpfoNdcHierarchySeeder extends Seeder
     public function run(OrganizationalHierarchyService $hierarchyService): void
     {
         $root = OrganizationalUnit::where('code', 'EPFO')->first();
-        if (!$root) {
+        if (! $root) {
             $root = $hierarchyService->createUnit([
                 'code' => 'EPFO',
                 'name' => 'Employees\' Provident Fund Organisation',
@@ -26,7 +28,7 @@ class EpfoNdcHierarchySeeder extends Seeder
         }
 
         $ndc = OrganizationalUnit::where('code', 'NDC')->first();
-        if (!$ndc) {
+        if (! $ndc) {
             $ndc = $hierarchyService->createUnit([
                 'code' => 'NDC',
                 'name' => 'National Data Center',
@@ -44,8 +46,22 @@ class EpfoNdcHierarchySeeder extends Seeder
             ]
         );
 
-        if (!$ndc->sites()->where('sites.id', $ndcHq->id)->exists()) {
+        if (! $ndc->sites()->where('sites.id', $ndcHq->id)->exists()) {
             $ndc->sites()->attach($ndcHq->id);
+        }
+
+        $store = Location::firstOrCreate(
+            ['site_id' => $ndcHq->id, 'code' => 'NDC_MAIN_STORE'],
+            [
+                'name' => 'NDC Main Store',
+                'floor' => 'Ground',
+                'location_type' => LocationType::STORE,
+                'is_active' => true,
+            ]
+        );
+
+        if (blank($store->path)) {
+            $store->forceFill(['path' => '/'.$store->id.'/'])->save();
         }
     }
 }

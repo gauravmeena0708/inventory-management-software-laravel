@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Official;
 use App\Models\User;
+use App\Services\Organization\OrganizationalContext;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class OfficialPolicy
@@ -24,7 +25,14 @@ class OfficialPolicy
      */
     public function view(User $user, ?Official $official = null): bool
     {
-        return $user->canViewInventory();
+        if (! $user->canViewInventory() || ! $official) {
+            return false;
+        }
+
+        return Official::query()
+            ->visibleTo($user)
+            ->whereKey($official->getKey())
+            ->exists();
     }
 
     /**
@@ -40,7 +48,7 @@ class OfficialPolicy
      */
     public function update(User $user, ?Official $official = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->canWrite($user, $official);
     }
 
     /**
@@ -48,7 +56,7 @@ class OfficialPolicy
      */
     public function delete(User $user, ?Official $official = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->canWrite($user, $official);
     }
 
     /**
@@ -56,6 +64,30 @@ class OfficialPolicy
      */
     public function viewSensitive(User $user, ?Official $official = null): bool
     {
-        return $user->canViewSensitivePersonnel();
+        if (! $user->canViewSensitivePersonnel()) {
+            return false;
+        }
+
+        return ! $official || $this->view($user, $official);
+    }
+
+    private function canWrite(User $user, ?Official $official): bool
+    {
+        if (! $official || ! $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER)) {
+            return false;
+        }
+
+        $location = $official->location;
+        if (! $location?->is_active || ! $location->site?->is_active) {
+            return false;
+        }
+
+        $context = app(OrganizationalContext::class);
+
+        return $location->site
+            ->organizationalUnits()
+            ->active()
+            ->get()
+            ->contains(fn ($unit): bool => $context->canWrite($user, $unit->id));
     }
 }

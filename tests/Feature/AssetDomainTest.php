@@ -7,7 +7,6 @@ use App\Enums\AssetType;
 use App\Enums\UserRole;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
-use App\Models\Attachment;
 use App\Models\FileRecord;
 use App\Models\Location;
 use App\Models\Manufacturer;
@@ -121,7 +120,7 @@ class AssetDomainTest extends TestCase
             'asset_tag' => 'TAG-MBP-01',
             'amc_end' => now()->addDays(30),
             'warranty_expiry' => now()->addDays(45),
-            'end_of_support' => now()->addDays(60),
+            'end_of_support' => now()->addDays(59),
         ]);
 
         $server = Asset::factory()->server()->inUse()->create([

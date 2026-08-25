@@ -13,7 +13,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Consumable extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -67,6 +67,22 @@ class Consumable extends Model
     public function latestEntry(): HasOne
     {
         return $this->hasOne(Entry::class, 'consumable_id')->latestOfMany('id');
+    }
+
+    /**
+     * Location-specific balances. The legacy in_stock column is a synchronized aggregate only.
+     */
+    public function stockBalances(): HasMany
+    {
+        return $this->hasMany(StockBalance::class);
+    }
+
+    /**
+     * Immutable location-specific stock transactions.
+     */
+    public function stockTransactions(): HasMany
+    {
+        return $this->hasMany(StockTransaction::class);
     }
 
     /**

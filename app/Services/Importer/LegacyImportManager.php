@@ -2,6 +2,7 @@
 
 namespace App\Services\Importer;
 
+use App\Contracts\OrganizationalServiceIdentity;
 use App\Models\LegacyImportRun;
 use App\Services\Importer\TableImporters\AgreementTableImporter;
 use App\Services\Importer\TableImporters\AssetTableImporter;
@@ -39,7 +40,7 @@ class LegacyImportManager
      */
     public function __construct(?ReconciliationReporter $reporter = null)
     {
-        $this->reporter = $reporter ?? new ReconciliationReporter();
+        $this->reporter = $reporter ?? new ReconciliationReporter;
     }
 
     /**
@@ -48,6 +49,7 @@ class LegacyImportManager
     public function setLegacyConnection(string $connection): self
     {
         $this->legacyConnection = $connection;
+
         return $this;
     }
 
@@ -57,6 +59,7 @@ class LegacyImportManager
     public function setTargetConnection(?string $connection): self
     {
         $this->targetConnection = $connection;
+
         return $this;
     }
 
@@ -66,22 +69,29 @@ class LegacyImportManager
     public function setChunkSize(int $chunkSize): self
     {
         $this->chunkSize = $chunkSize;
+
         return $this;
     }
 
     /**
      * Run the complete legacy inventory import routine.
      *
-     * @param bool $dryRun Whether to simulate the import without persisting changes to the target database
-     * @param bool $resume Whether to resume from a previous checkpoint
-     * @param (callable(string $stage, int $processed, int $total): void)|null $progressCallback
-     * @return LegacyImportRun
+     * @param  bool  $dryRun  Whether to simulate the import without persisting changes to the target database
+     * @param  bool  $resume  Whether to resume from a previous checkpoint
+     * @param  (callable(string $stage, int $processed, int $total): void)|null  $progressCallback
      */
     public function import(
+        OrganizationalServiceIdentity $identity,
         bool $dryRun = false,
         bool $resume = false,
         ?callable $progressCallback = null
     ): LegacyImportRun {
+        // Access is intentionally explicit even though the legacy importer
+        // performs reconciliation-level writes outside user-facing scopes.
+        // Reading these values here also prevents an unused marker identity.
+        $identity->channel();
+        $identity->purpose();
+
         $startedAt = now();
         $fingerprint = $this->calculateSourceFingerprint();
 
@@ -167,7 +177,7 @@ class LegacyImportManager
                 // Roll back all target writes
                 DB::connection($this->targetConnection)->rollBack();
 
-                $run = new LegacyImportRun();
+                $run = new LegacyImportRun;
                 $run->setConnection($this->targetConnection);
                 $run->source_fingerprint = $fingerprint;
                 $run->dry_run = true;
@@ -199,7 +209,7 @@ class LegacyImportManager
                 DB::connection($this->targetConnection)->rollBack();
             }
 
-            $run = new LegacyImportRun();
+            $run = new LegacyImportRun;
             $run->setConnection($this->targetConnection);
             $run->source_fingerprint = $fingerprint;
             $run->dry_run = $dryRun;
@@ -208,9 +218,9 @@ class LegacyImportManager
             $run->counts = $allCounts;
             $run->anomalies = $allAnomalies;
             $run->status = 'failed';
-            $run->error_summary = $e->getMessage() . "\n" . $e->getTraceAsString();
+            $run->error_summary = $e->getMessage()."\n".$e->getTraceAsString();
 
-            if (!$dryRun && Schema::connection($this->targetConnection)->hasTable('legacy_import_runs')) {
+            if (! $dryRun && Schema::connection($this->targetConnection)->hasTable('legacy_import_runs')) {
                 $run->save();
             }
 

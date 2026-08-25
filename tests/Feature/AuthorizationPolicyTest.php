@@ -3,12 +3,6 @@
 namespace Tests\Feature;
 
 use App\Enums\UserRole;
-use App\Models\Agreement;
-use App\Models\Consumable;
-use App\Models\Developer;
-use App\Models\Official;
-use App\Models\Payment;
-use App\Models\Task;
 use App\Models\User;
 use App\Policies\AgreementPolicy;
 use App\Policies\AssetPolicy;
@@ -19,6 +13,7 @@ use App\Policies\PaymentPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\UserPolicy;
 use PHPUnit\Framework\TestCase;
+use Spatie\Activitylog\Support\LogOptions;
 
 class AuthorizationPolicyTest extends TestCase
 {
@@ -30,6 +25,7 @@ class AuthorizationPolicyTest extends TestCase
             'role' => $role,
         ]);
         $user->role = $role;
+
         return $user;
     }
 
@@ -114,10 +110,10 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_user_activitylog_options_configured(): void
     {
-        $user = new User();
+        $user = new User;
         $options = $user->getActivitylogOptions();
 
-        $this->assertInstanceOf(\Spatie\Activitylog\Support\LogOptions::class, $options);
+        $this->assertInstanceOf(LogOptions::class, $options);
     }
 
     /**
@@ -125,7 +121,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_asset_policy_enforces_matrix_permissions(): void
     {
-        $policy = new AssetPolicy();
+        $policy = new AssetPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $manager = $this->makeUserWithRole(UserRole::INVENTORY_MANAGER);
@@ -134,20 +130,22 @@ class AuthorizationPolicyTest extends TestCase
         $viewer = $this->makeUserWithRole(UserRole::VIEWER);
         $auditor = $this->makeUserWithRole(UserRole::AUDITOR);
 
-        // View: all roles can view
+        // All inventory roles can enter the list, while record reads fail closed
+        // without a concrete owned asset. Scoped feature tests cover positive reads.
         foreach ([$admin, $manager, $stockOp, $finOp, $viewer, $auditor] as $user) {
             $this->assertTrue($policy->viewAny($user));
-            $this->assertTrue($policy->view($user));
+            $this->assertFalse($policy->view($user));
         }
 
-        // Create / Update / Delete / Assign / Return / Decommission: Admin & Inventory Manager only
+        // Creation is role-based. Record mutations additionally require an owned asset
+        // and an active organizational write scope, covered by scoped feature tests.
         foreach ([$admin, $manager] as $authorizedUser) {
             $this->assertTrue($policy->create($authorizedUser));
-            $this->assertTrue($policy->update($authorizedUser));
-            $this->assertTrue($policy->delete($authorizedUser));
-            $this->assertTrue($policy->assign($authorizedUser));
-            $this->assertTrue($policy->return($authorizedUser));
-            $this->assertTrue($policy->decommission($authorizedUser));
+            $this->assertFalse($policy->update($authorizedUser));
+            $this->assertFalse($policy->delete($authorizedUser));
+            $this->assertFalse($policy->assign($authorizedUser));
+            $this->assertFalse($policy->return($authorizedUser));
+            $this->assertFalse($policy->decommission($authorizedUser));
             $this->assertTrue($policy->export($authorizedUser));
         }
 
@@ -174,7 +172,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_consumable_policy_enforces_matrix_permissions(): void
     {
-        $policy = new ConsumablePolicy();
+        $policy = new ConsumablePolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $manager = $this->makeUserWithRole(UserRole::INVENTORY_MANAGER);
@@ -216,7 +214,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_agreement_policy_enforces_matrix_permissions(): void
     {
-        $policy = new AgreementPolicy();
+        $policy = new AgreementPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $manager = $this->makeUserWithRole(UserRole::INVENTORY_MANAGER);
@@ -225,17 +223,19 @@ class AuthorizationPolicyTest extends TestCase
         $viewer = $this->makeUserWithRole(UserRole::VIEWER);
         $auditor = $this->makeUserWithRole(UserRole::AUDITOR);
 
-        // View: all roles
+        // All roles can enter the list; direct reads require a concrete,
+        // visibly owned agreement and therefore fail closed without one.
         foreach ([$admin, $manager, $finOp, $stockOp, $viewer, $auditor] as $user) {
             $this->assertTrue($policy->viewAny($user));
-            $this->assertTrue($policy->view($user));
+            $this->assertFalse($policy->view($user));
         }
 
-        // Create / Update / Delete: Admin, Inventory Manager, Finance Operator
+        // Creation is role-based; record mutations additionally require write
+        // scope to a concrete owner (covered by scoped feature tests).
         foreach ([$admin, $manager, $finOp] as $authorizedUser) {
             $this->assertTrue($policy->create($authorizedUser));
-            $this->assertTrue($policy->update($authorizedUser));
-            $this->assertTrue($policy->delete($authorizedUser));
+            $this->assertFalse($policy->update($authorizedUser));
+            $this->assertFalse($policy->delete($authorizedUser));
             $this->assertTrue($policy->export($authorizedUser));
         }
 
@@ -256,7 +256,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_payment_policy_enforces_matrix_permissions(): void
     {
-        $policy = new PaymentPolicy();
+        $policy = new PaymentPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $finOp = $this->makeUserWithRole(UserRole::FINANCE_OPERATOR);
@@ -265,17 +265,19 @@ class AuthorizationPolicyTest extends TestCase
         $viewer = $this->makeUserWithRole(UserRole::VIEWER);
         $auditor = $this->makeUserWithRole(UserRole::AUDITOR);
 
-        // View: all roles
+        // All roles can enter the list; direct reads require a payment whose
+        // agreement has visible ownership.
         foreach ([$admin, $finOp, $manager, $stockOp, $viewer, $auditor] as $user) {
             $this->assertTrue($policy->viewAny($user));
-            $this->assertTrue($policy->view($user));
+            $this->assertFalse($policy->view($user));
         }
 
-        // Complete / Cancel payments: Admin & Finance Operator only
-        $this->assertTrue($policy->complete($admin));
-        $this->assertTrue($policy->cancel($admin));
-        $this->assertTrue($policy->complete($finOp));
-        $this->assertTrue($policy->cancel($finOp));
+        // Role alone is insufficient: mutations also require inherited
+        // agreement ownership and organizational write scope.
+        $this->assertFalse($policy->complete($admin));
+        $this->assertFalse($policy->cancel($admin));
+        $this->assertFalse($policy->complete($finOp));
+        $this->assertFalse($policy->cancel($finOp));
 
         $this->assertFalse($policy->complete($manager));
         $this->assertFalse($policy->cancel($manager));
@@ -289,8 +291,8 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_official_and_developer_policy_sensitive_access(): void
     {
-        $officialPolicy = new OfficialPolicy();
-        $developerPolicy = new DeveloperPolicy();
+        $officialPolicy = new OfficialPolicy;
+        $developerPolicy = new DeveloperPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $auditor = $this->makeUserWithRole(UserRole::AUDITOR);
@@ -320,7 +322,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_task_policy_enforces_matrix_permissions(): void
     {
-        $policy = new TaskPolicy();
+        $policy = new TaskPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $manager = $this->makeUserWithRole(UserRole::INVENTORY_MANAGER);
@@ -342,7 +344,7 @@ class AuthorizationPolicyTest extends TestCase
      */
     public function test_user_policy_admin_only_management(): void
     {
-        $policy = new UserPolicy();
+        $policy = new UserPolicy;
 
         $admin = $this->makeUserWithRole(UserRole::ADMIN);
         $manager = $this->makeUserWithRole(UserRole::INVENTORY_MANAGER);

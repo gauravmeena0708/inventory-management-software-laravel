@@ -94,6 +94,18 @@
                     @error('location_id')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
                 </div>
 
+                <!-- Owning Organizational Unit -->
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Owning Organizational Unit</label>
+                    <select name="organizational_unit_id" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="">Use active context or the location's sole writable unit</option>
+                        @foreach($organizationalUnits as $unit)
+                            <option value="{{ $unit->id }}" @selected(old('organizational_unit_id') == $unit->id)>{{ $unit->name }} ({{ $unit->code }})</option>
+                        @endforeach
+                    </select>
+                    @error('organizational_unit_id')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
+                </div>
+
                 <!-- Initial Assignee -->
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Initial Assignee (Optional)</label>
@@ -202,7 +214,7 @@
                 Cancel
             </a>
             <button type="submit" class="px-5 py-2.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">
-                Save & Register Asset
+                Save &amp; Register Asset
             </button>
         </div>
     </form>

@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ServiceExecutionChannel;
+use App\Services\Authorization\SystemIdentity;
 use App\Services\Importer\LegacyImportManager;
 use App\Services\Importer\ReconciliationReporter;
 use Illuminate\Console\Command;
@@ -55,7 +57,7 @@ class ImportLegacyInventoryCommand extends Command
         $this->renderCountsTable($report['counts']['entities']);
         $this->renderFinancialParityTable($report['financial_parity']);
 
-        if (!empty($report['stock_discrepancies'])) {
+        if (! empty($report['stock_discrepancies'])) {
             $this->warn("\n[!] Stock Ledger Discrepancies Detected:");
             $stockRows = array_map(fn ($d) => [
                 $d['name'],
@@ -67,21 +69,23 @@ class ImportLegacyInventoryCommand extends Command
             $this->table(['Consumable', 'in_stock Value', 'Latest Entry stock_after', 'Difference'], $stockRows);
         }
 
-        if (!empty($report['unmapped'])) {
+        if (! empty($report['unmapped'])) {
             $this->warn("\n[!] Unmapped Legacy Records Detected:");
             foreach ($report['unmapped'] as $table => $ids) {
-                $this->line(" - Table '{$table}': " . count($ids) . " unmapped IDs: " . implode(', ', array_slice($ids, 0, 10)) . (count($ids) > 10 ? '...' : ''));
+                $this->line(" - Table '{$table}': ".count($ids).' unmapped IDs: '.implode(', ', array_slice($ids, 0, 10)).(count($ids) > 10 ? '...' : ''));
             }
         }
 
         if ($report['is_clean']) {
             $this->newLine();
             $this->info(' [✓] Verification PASSED: Zero data loss, complete count parity, and financial balance verified.');
+
             return self::SUCCESS;
         }
 
         $this->newLine();
         $this->warn(' [!] Verification completed with recorded discrepancies or orphaned references.');
+
         return self::SUCCESS;
     }
 
@@ -106,6 +110,10 @@ class ImportLegacyInventoryCommand extends Command
         $this->info('Starting extraction and transformation pipeline...');
 
         $run = $manager->import(
+            identity: SystemIdentity::organizationWide(
+                ServiceExecutionChannel::LEGACY_IMPORT,
+                'Legacy inventory migration and reconciliation'
+            ),
             dryRun: $isDryRun,
             resume: $isResume,
             progressCallback: function (string $stage, int $processed, int $total) {
@@ -114,9 +122,9 @@ class ImportLegacyInventoryCommand extends Command
         );
 
         $this->newLine();
-        $this->info("====================================================");
-        $this->info("             Import Execution Summary               ");
-        $this->info("====================================================");
+        $this->info('====================================================');
+        $this->info('             Import Execution Summary               ');
+        $this->info('====================================================');
 
         $countRows = [];
         foreach ($run->counts ?? [] as $entity => $count) {
@@ -126,8 +134,8 @@ class ImportLegacyInventoryCommand extends Command
         $this->table(['Entity / Table', 'Imported Count'], $countRows);
 
         $anomalies = $run->anomalies ?? [];
-        if (!empty($anomalies)) {
-            $this->warn("\n[!] Recorded Anomalies During Import (" . count($anomalies) . "):");
+        if (! empty($anomalies)) {
+            $this->warn("\n[!] Recorded Anomalies During Import (".count($anomalies).'):');
             $anomalyRows = array_slice(array_map(fn ($a) => [
                 $a['table'] ?? 'N/A',
                 $a['type'] ?? 'N/A',
@@ -136,24 +144,24 @@ class ImportLegacyInventoryCommand extends Command
 
             $this->table(['Source Table', 'Anomaly Type', 'Detail'], $anomalyRows);
             if (count($anomalies) > 15) {
-                $this->line(" ... and " . (count($anomalies) - 15) . " more anomalies (see LegacyImportRun report).");
+                $this->line(' ... and '.(count($anomalies) - 15).' more anomalies (see LegacyImportRun report).');
             }
         } else {
-            $this->info(" [✓] Zero anomalies recorded during import pipeline.");
+            $this->info(' [✓] Zero anomalies recorded during import pipeline.');
         }
 
         $this->newLine();
-        $this->info("Running post-import reconciliation verification...");
+        $this->info('Running post-import reconciliation verification...');
         $verifyReport = $reporter->generateReport();
         $this->renderCountsTable($verifyReport['counts']['entities']);
         $this->renderFinancialParityTable($verifyReport['financial_parity']);
 
         if ($isDryRun) {
             $this->newLine();
-            $this->comment(" [i] Dry-run simulation completed successfully. Target database remains clean and untouched.");
+            $this->comment(' [i] Dry-run simulation completed successfully. Target database remains clean and untouched.');
         } else {
             $this->newLine();
-            $this->info(" [✓] Legacy inventory data import completed successfully.");
+            $this->info(' [✓] Legacy inventory data import completed successfully.');
         }
 
         return self::SUCCESS;

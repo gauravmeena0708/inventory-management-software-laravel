@@ -12,7 +12,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Developer extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -87,8 +87,7 @@ class Developer extends Model
     {
         return $query->where(function (Builder $q) {
             $q->where('status', 'active')
-                ->orWhere('status', '1')
-                ->orWhere('status', 1);
+                ->orWhere('status', '1');
         });
     }
 
@@ -100,8 +99,7 @@ class Developer extends Model
         return $query->where(function (Builder $q) {
             $q->where('status', 'discontinued')
                 ->orWhere('status', 'inactive')
-                ->orWhere('status', '0')
-                ->orWhere('status', 0);
+                ->orWhere('status', '0');
         });
     }
 }

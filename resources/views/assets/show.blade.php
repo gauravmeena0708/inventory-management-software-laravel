@@ -224,7 +224,7 @@
     <!-- Assignment History Timeline -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Assignment & Custody History</h2>
+            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Assignment &amp; Custody History</h2>
             <span class="text-xs text-slate-500">{{ $asset->assignments->count() }} records</span>
         </div>
         <div class="overflow-x-auto">

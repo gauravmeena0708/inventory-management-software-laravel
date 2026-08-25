@@ -2,60 +2,100 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Services\Organization\NdcMigrationReconciler;
+use Illuminate\Console\Command;
 
 class MapExistingInventoryToNdc extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'epfo:map-ndc-inventory {--dry-run : Execute the mapping without committing changes} {--verify : Output verification logs} {--resume : Resume from a previous failure}';
+    protected $signature = 'epfo:map-ndc-inventory
+                            {--apply : Apply the mapping (the backward-compatible default)}
+                            {--dry-run : Report the changes and roll them back}
+                            {--verify : Verify mapping without writing}
+                            {--resume : Continue a partially completed mapping}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Maps existing unstructured inventory and location data to the newly seeded NDC structure.';
+    protected $description = 'Map and reconcile existing inventory against the seeded NDC hierarchy.';
 
-    /**
-     * Execute the console command.
-     */
     public function handle(): int
     {
-        $dryRun = $this->option('dry-run');
-        $verify = $this->option('verify');
-        // resume isn't explicitly complex here since we made reconcile idempotent, 
-        // but we'll accept the flag.
+        $selectedModes = collect(['apply', 'dry-run', 'verify', 'resume'])
+            ->filter(fn (string $mode): bool => (bool) $this->option($mode));
 
-        $this->info('Starting NDC inventory mapping...');
+        if ($selectedModes->count() > 1) {
+            $this->error('Choose only one of --apply, --dry-run, --verify, or --resume.');
+
+            return self::INVALID;
+        }
+
+        if ($this->option('verify')) {
+            return $this->verify();
+        }
+
+        $dryRun = (bool) $this->option('dry-run');
+        $resume = (bool) $this->option('resume');
+        $mode = $dryRun ? 'DRY RUN' : ($resume ? 'RESUME' : 'APPLY');
+
+        $this->info("Starting NDC inventory mapping in {$mode} mode...");
 
         if ($dryRun) {
-            $this->warn('DRY RUN MODE ENABLED. Changes will be rolled back.');
+            $this->warn('All target changes will be rolled back.');
+        } elseif ($resume) {
+            $this->comment('Only unresolved records and incorrect memberships will be processed.');
         }
 
         try {
-            $reconciler = new NdcMigrationReconciler($dryRun, $verify);
-            $stats = $reconciler->reconcile();
+            $stats = (new NdcMigrationReconciler($dryRun, $resume))->reconcile();
 
-            $this->info('Mapping completed successfully.');
             $this->table(
                 ['Entity', 'Processed Count'],
                 [
-                    ['Locations Mapped', $stats['locations_mapped']],
-                    ['Assets Backfilled', $stats['assets_backfilled']],
-                    ['Users Assigned', $stats['users_assigned']],
+                    ['Locations mapped', $stats['locations_mapped']],
+                    ['Location paths rebuilt', $stats['location_paths_rebuilt']],
+                    ['Assets backfilled', $stats['assets_backfilled']],
+                    ['Users assigned or corrected', $stats['users_assigned']],
+                    ['Users already complete', $stats['users_skipped']],
+                    ['Stock balances created', $stats['stock_balances_created']],
+                    ['Legacy stock entries copied', $stats['stock_entries_copied']],
+                    ['Legacy stock discrepancies', $stats['stock_discrepancies']],
+                    ['Stock migration conflicts', $stats['stock_conflicts']],
                 ]
             );
+            $this->info("NDC {$stats['mode']} completed successfully.");
+        } catch (\Throwable $exception) {
+            $this->error('Failed to map inventory: '.$exception->getMessage());
 
-        } catch (\Exception $e) {
-            $this->error('Failed to map inventory: ' . $e->getMessage());
-            return 1;
+            return self::FAILURE;
         }
 
-        return 0;
+        return self::SUCCESS;
+    }
+
+    private function verify(): int
+    {
+        $this->info('Verifying NDC inventory mapping (read-only)...');
+
+        $report = (new NdcMigrationReconciler)->verify();
+        $this->table(
+            ['Check', 'Outstanding', 'Record IDs / keys'],
+            [
+                ['Baseline records', count($report['baseline_missing']), implode(', ', $report['baseline_missing']) ?: '-'],
+                ['Locations without a site', count($report['unmapped_locations']), implode(', ', $report['unmapped_locations']) ?: '-'],
+                ['Assets without ownership', count($report['unmapped_assets']), implode(', ', $report['unmapped_assets']) ?: '-'],
+                ['Users without NDC context', count($report['unmapped_users']), implode(', ', $report['unmapped_users']) ?: '-'],
+                ['Invalid location paths', count($report['invalid_location_paths']), implode(', ', $report['invalid_location_paths']) ?: '-'],
+                ['Consumables without NDC store balance', count($report['unmapped_consumable_stock']), implode(', ', $report['unmapped_consumable_stock']) ?: '-'],
+                ['Legacy entries not copied', count($report['unmigrated_legacy_entries']), implode(', ', $report['unmigrated_legacy_entries']) ?: '-'],
+                ['Aggregate stock discrepancies', count($report['stock_balance_discrepancies']), implode(', ', $report['stock_balance_discrepancies']) ?: '-'],
+            ]
+        );
+
+        if (! $report['is_clean']) {
+            $this->error('Verification failed: unresolved NDC mapping records remain.');
+
+            return self::FAILURE;
+        }
+
+        $this->info('Verification passed: the NDC mapping is complete and internally consistent.');
+
+        return self::SUCCESS;
     }
 }

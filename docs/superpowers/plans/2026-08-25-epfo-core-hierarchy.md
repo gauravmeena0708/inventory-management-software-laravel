@@ -333,12 +333,12 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Confirm Laravel/PHP/PHPUnit versions from `composer.json` and runtime.
-- [ ] Record the current user, location, asset, consumable, and ledger schema in contract tests.
-- [ ] Assert the current schema does not require `users.location_id`.
-- [ ] Assert legacy source configuration remains read-only.
-- [ ] Update the companion design specification to match this plan.
-- [ ] Run the existing test suite and record pre-existing failures separately from hierarchy work.
+- [x] Confirm Laravel/PHP/PHPUnit versions from `composer.json` and runtime.
+- [x] Record the current user, location, asset, consumable, and ledger schema in contract tests.
+- [x] Assert the current schema does not require `users.location_id`.
+- [x] Assert legacy source configuration remains read-only.
+- [x] Update the companion design specification to match this plan.
+- [x] Run the existing test suite and record pre-existing failures separately from hierarchy work.
 
 ### Task 1: Organizational-unit schema
 
@@ -356,7 +356,7 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 - [x] Create the nullable-path transitional schema.
 - [x] Add parent/children relationships and non-auth-dependent query helpers.
 - [x] Do not add automatic subtree rewriting to model events.
-- [ ] Verify migration rollback in the test database.
+- [x] Verify migration rollback in the test database.
 
 ### Task 2: Transactional organizational hierarchy service
 
@@ -408,12 +408,12 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Create sites, organizational-unit/site associations, GPS fields, and geofence metadata.
-- [ ] Add physical hierarchy and geometry fields to locations without dropping legacy fields.
-- [ ] Implement a transactional physical-hierarchy service with cycle and subtree-move tests.
-- [ ] Validate latitude, longitude, local coordinates, and location-type parent rules.
-- [ ] Define whether a site's root locations may be shared by several units.
-- [ ] Preserve current location CRUD behavior during transition.
+- [x] Create sites, organizational-unit/site associations, GPS fields, and geofence metadata.
+- [x] Add physical hierarchy and geometry fields to locations without dropping legacy fields.
+- [x] Implement a transactional physical-hierarchy service with cycle and subtree-move tests.
+- [x] Validate latitude, longitude, local coordinates, and location-type parent rules.
+- [x] Define whether a site's root locations may be shared by several units.
+- [x] Preserve current location CRUD behavior during transition.
 
 ### Task 5: NDC seed and existing-data mapping
 
@@ -426,13 +426,13 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Seed EPFO root, NDC unit, and NDC site idempotently using stable codes.
-- [ ] Map existing physical locations under the NDC site without destroying original values.
-- [ ] Add nullable `organizational_unit_id` to assets and backfill it to NDC.
-- [ ] Assign existing users through an explicit role-to-membership mapping; do not give every user write access.
-- [ ] Support dry-run, apply, resume, and verification modes.
-- [ ] Reconcile unmapped assets, locations, users, and invalid paths before enforcement.
-- [ ] Keep the legacy source database read-only.
+- [x] Seed EPFO root, NDC unit, and NDC site idempotently using stable codes.
+- [x] Map existing physical locations under the NDC site without destroying original values.
+- [x] Add nullable `organizational_unit_id` to assets and backfill it to NDC.
+- [x] Assign existing users through an explicit role-to-membership mapping; do not give every user write access.
+- [x] Support dry-run, apply, resume, and verification modes.
+- [x] Reconcile unmapped assets, locations, users, and invalid paths before enforcement.
+- [x] Keep the legacy source database read-only.
 
 ### Task 6: Asset ownership, placement, and relocation
 
@@ -447,13 +447,13 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Backfill one current placement for assets with a location.
-- [ ] Move assets through a transaction that closes the old placement and updates `assets.location_id`.
-- [ ] Validate source and destination permissions.
-- [ ] Preserve assignment history separately from physical placement history.
-- [ ] Test concurrent moves and prevent multiple open placements.
-- [ ] Combine current role checks with organizational write scope.
-- [ ] Confirm Viewer and Auditor cannot mutate assets even when locally assigned.
+- [x] Backfill one current placement for assets with a location.
+- [x] Move assets through a transaction that closes the old placement and updates `assets.location_id`.
+- [x] Validate source and destination permissions.
+- [x] Preserve assignment history separately from physical placement history.
+- [x] Test concurrent moves and prevent multiple open placements.
+- [x] Combine current role checks with organizational write scope.
+- [x] Confirm Viewer and Auditor cannot mutate assets even when locally assigned.
 
 ### Task 7: Reusable visibility queries and policy coverage
 
@@ -467,14 +467,14 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Implement local and descendant organizational visibility without depending on ambient `Auth` state.
-- [ ] Deduplicate results for overlapping memberships.
-- [ ] Define explicit administrator behavior.
-- [ ] Test self, child, parent, sibling, unrelated, inactive, and missing-ownership records.
-- [ ] Apply visibility to asset lists, detail routes, dashboard counts, searches, exports, attachments, and audit views.
-- [ ] Establish ownership fields or inherited ownership rules before scoping officials, files, agreements, payments, tasks, or future issues.
-- [ ] Verify console commands, queue jobs, API requests, and legacy imports use explicit service identities or system context.
-- [ ] Decide and test whether unauthorized direct URLs return 403 or 404 consistently.
+- [x] Implement local and descendant organizational visibility without depending on ambient `Auth` state.
+- [x] Deduplicate results for overlapping memberships.
+- [x] Define explicit administrator behavior.
+- [x] Test self, child, parent, sibling, unrelated, inactive, and missing-ownership records.
+- [x] Apply visibility to asset lists, detail routes, dashboard counts, searches, exports, attachments, and audit views.
+- [x] Establish ownership fields or inherited ownership rules before scoping officials, files, agreements, payments, tasks, or future issues.
+- [x] Verify console commands, queue jobs, API requests, and legacy imports use explicit service identities or system context.
+- [x] Decide and test whether unauthorized direct URLs return 403 or 404 consistently.
 
 ### Task 8: Per-location consumable stock
 
@@ -490,12 +490,12 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Treat consumables as a shared catalog and quantities as location-specific balances.
-- [ ] Migrate current stock to a designated NDC store location.
-- [ ] Preserve and reconcile the existing immutable ledger.
-- [ ] Implement purchase, issue, adjustment, and transfer with row locks and idempotency.
-- [ ] Require write access to the source and authorized acceptance at the destination.
-- [ ] Test insufficient stock, replayed requests, concurrent issue, and cross-office isolation.
+- [x] Treat consumables as a shared catalog and quantities as location-specific balances.
+- [x] Migrate current stock to a designated NDC store location.
+- [x] Preserve and reconcile the existing immutable ledger.
+- [x] Implement purchase, issue, adjustment, and transfer with row locks and idempotency.
+- [x] Require write access to the source and authorized acceptance at the destination.
+- [x] Test insufficient stock, replayed requests, concurrent issue, and cross-office isolation.
 
 ### Task 9: Private spatial maps and 2D interaction foundation
 
@@ -510,14 +510,14 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Create versioned spatial-map records linked to private attachments.
-- [ ] Validate permitted file types, size, checksum, and map metadata.
-- [ ] Implement authorized upload, view/download, supersede, and delete flows.
-- [ ] Add calibration metadata so markers are not tied only to image pixels.
-- [ ] Display hierarchical locations and asset markers on the current 2D map.
-- [ ] Allow map relocation only through `AssetPlacementService` and policy checks.
-- [ ] Reserve `3d_model`, Z coordinate, and coordinate-system fields without implementing a 3D viewer.
-- [ ] Test that unauthorized users cannot infer private map paths or restricted coordinates.
+- [x] Create versioned spatial-map records linked to private attachments.
+- [x] Validate permitted file types, size, checksum, and map metadata.
+- [x] Implement authorized upload, view/download, supersede, and delete flows.
+- [x] Add calibration metadata so markers are not tied only to image pixels.
+- [x] Display hierarchical locations and asset markers on the current 2D map.
+- [x] Allow map relocation only through `AssetPlacementService` and policy checks.
+- [x] Reserve `3d_model`, Z coordinate, and coordinate-system fields without implementing a 3D viewer.
+- [x] Test that unauthorized users cannot infer private map paths or restricted coordinates.
 
 ### Task 10: NDC context and hierarchy UI
 
@@ -530,12 +530,12 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Add the organizational context switcher for users with multiple memberships.
-- [ ] Add site/building/floor/room/rack tree navigation and breadcrumbs.
-- [ ] Filter selectors to authorized organizational units and physical spaces.
-- [ ] Keep structured list/search views available even when no map is uploaded.
-- [ ] Hide unauthorized map and mutation controls while retaining server-side enforcement.
-- [ ] Add accessible non-map alternatives for all essential operations.
+- [x] Add the organizational context switcher for users with multiple memberships.
+- [x] Add site/building/floor/room/rack tree navigation and breadcrumbs.
+- [x] Filter selectors to authorized organizational units and physical spaces.
+- [x] Keep structured list/search views available even when no map is uploaded.
+- [x] Hide unauthorized map and mutation controls while retaining server-side enforcement.
+- [x] Add accessible non-map alternatives for all essential operations.
 
 ### Task 11: Second-office expansion proof
 
@@ -546,13 +546,13 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Create a second organizational unit, site, building, floor, user, asset, and stock balance entirely through public services/data configuration.
-- [ ] Confirm no NDC-specific code change is required.
-- [ ] Test NDC versus second-office read isolation.
-- [ ] Test authorized ancestor read-down.
-- [ ] Test write-local denial and explicit descendant-write grant.
-- [ ] Test asset and stock transfer workflows between the two offices.
-- [ ] Confirm dashboards, exports, maps, attachments, and audit history respect scope.
+- [x] Create a second organizational unit, site, building, floor, user, asset, and stock balance entirely through public services/data configuration.
+- [x] Confirm no NDC-specific code change is required.
+- [x] Test NDC versus second-office read isolation.
+- [x] Test authorized ancestor read-down.
+- [x] Test write-local denial and explicit descendant-write grant.
+- [x] Test asset and stock transfer workflows between the two offices.
+- [x] Confirm dashboards, exports, maps, attachments, and audit history respect scope.
 
 ### Task 12: Cutover and acceptance
 
@@ -563,8 +563,8 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Run all hierarchy, authorization, placement, stock, map, and importer tests.
-- [ ] Run the complete existing PHPUnit suite and classify unrelated legacy failures.
+- [x] Run all hierarchy, authorization, placement, stock, map, and importer tests.
+- [x] Run the complete existing PHPUnit suite and classify unrelated legacy failures.
 - [ ] Run the NDC mapping command in dry-run mode against a sanitized copy of real data.
 - [ ] Require zero unmapped active assets, users, and locations before fail-closed enforcement.
 - [ ] Back up the target database and document rollback steps.

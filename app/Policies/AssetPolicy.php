@@ -3,7 +3,11 @@
 namespace App\Policies;
 
 use App\Enums\UserRole;
+use App\Models\Asset;
+use App\Models\Location;
 use App\Models\User;
+use App\Services\Authorization\OrganizationalVisibility;
+use App\Services\Organization\OrganizationalContext;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class AssetPolicy
@@ -23,7 +27,12 @@ class AssetPolicy
      */
     public function view(User $user, mixed $asset = null): bool
     {
-        return $user->canViewInventory();
+        if (! $user->canViewInventory() || ! $asset instanceof Asset) {
+            return false;
+        }
+
+        return app(OrganizationalVisibility::class)
+            ->canRead($user, $asset->organizational_unit_id);
     }
 
     /**
@@ -43,14 +52,16 @@ class AssetPolicy
             return false;
         }
 
-        // If the asset has no unit assigned yet, default to allowing if role permits
-        // Alternatively, require it to be assigned.
-        if (! $asset || ! $asset->organizational_unit_id) {
-            return true;
+        if (! $asset instanceof Asset || ! $asset->organizational_unit_id) {
+            return false;
         }
 
-        $context = app(\App\Services\Organization\OrganizationalContext::class);
-        return $context->canWrite($user, $asset->organizational_unit_id);
+        if (! $asset->organizationalUnit()->active()->exists()) {
+            return false;
+        }
+
+        return app(OrganizationalContext::class)
+            ->canWrite($user, $asset->organizational_unit_id);
     }
 
     /**
@@ -96,27 +107,40 @@ class AssetPolicy
     /**
      * Determine whether the user can relocate the asset (Asset Placement).
      */
-    public function relocate(User $user, mixed $asset, \App\Models\Location $destination): bool
+    public function relocate(User $user, Asset $asset, Location $destination): bool
     {
         if (! $this->checkWriteScope($user, $asset)) {
             return false;
         }
 
-        // Must also have write scope on destination location's organizational unit.
-        if ($destination && $destination->site && $destination->site->organizationalUnits->isNotEmpty()) {
-            $context = app(\App\Services\Organization\OrganizationalContext::class);
-            $hasDestWrite = false;
-            foreach ($destination->site->organizationalUnits as $unit) {
-                if ($context->canWrite($user, $unit->id)) {
-                    $hasDestWrite = true;
-                    break;
-                }
-            }
-            return $hasDestWrite;
+        $source = $asset->location;
+        if ($asset->location_id && (! $source || ! $this->checkLocationWriteScope($user, $source))) {
+            return false;
         }
 
-        // If the destination isn't mapped to an org unit, we allow it (for legacy).
-        return true;
+        return $this->checkLocationWriteScope($user, $destination);
+    }
+
+    private function checkLocationWriteScope(User $user, Location $location): bool
+    {
+        if (! $location->is_active || ! $location->site?->is_active) {
+            return false;
+        }
+
+        $locationUnits = $location->site
+            ->organizationalUnits()
+            ->active()
+            ->get();
+
+        if ($locationUnits->isEmpty()) {
+            return false;
+        }
+
+        $context = app(OrganizationalContext::class);
+
+        return $locationUnits->contains(
+            fn ($unit): bool => $context->canWrite($user, $unit->id)
+        );
     }
 
     /**

@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Services\Authorization\OrganizationalVisibility;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -11,7 +14,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class FileRecord extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The table associated with the model.
@@ -34,6 +37,7 @@ class FileRecord extends Model
         'division',
         'opened_at',
         'legacy_id',
+        'organizational_unit_id',
         // Legacy column compatibility
         'efile',
         'physical',
@@ -72,5 +76,15 @@ class FileRecord extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function organizationalUnit(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return app(OrganizationalVisibility::class)->apply($query, $user);
     }
 }

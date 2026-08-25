@@ -27,28 +27,39 @@ class DashboardController extends Controller
     public function index(Request $request): View|JsonResponse
     {
         $user = $request->user();
+        abort_unless($user, 403);
+
+        $visibleAssets = Asset::query()->visibleTo($user);
+        $visibleAgreements = Agreement::query()->visibleTo($user);
+        $visiblePayments = Payment::query()->visibleTo($user);
 
         $kpis = [
-            'total_assets' => Asset::count(),
-            'assets_in_use' => Asset::inUse()->count(),
-            'assets_in_stock' => Asset::inStock()->count(),
-            'assets_decommissioned' => Asset::decommissioned()->count(),
-            'assets_by_type' => Asset::query()
+            'total_assets' => (clone $visibleAssets)->count(),
+            'assets_in_use' => (clone $visibleAssets)->inUse()->count(),
+            'assets_in_stock' => (clone $visibleAssets)->inStock()->count(),
+            'assets_decommissioned' => (clone $visibleAssets)->decommissioned()->count(),
+            'assets_by_type' => (clone $visibleAssets)
                 ->selectRaw('asset_type, count(*) as total')
                 ->groupBy('asset_type')
                 ->pluck('total', 'asset_type')
                 ->toArray(),
-            'agreements_expiring_30_days' => Agreement::expiringSoon(30)->count(),
-            'agreements_expiring_180_days' => Agreement::expiringSoon(180)->count(),
-            'agreements_expired' => Agreement::expired()->count(),
-            'total_agreements' => Agreement::count(),
+            'agreements_expiring_30_days' => (clone $visibleAgreements)->expiringSoon(30)->count(),
+            'agreements_expiring_180_days' => (clone $visibleAgreements)->expiringSoon(180)->count(),
+            'agreements_expired' => (clone $visibleAgreements)->expired()->count(),
+            'total_agreements' => (clone $visibleAgreements)->count(),
             'low_stock_consumables' => Consumable::lowStock()->count(),
             'total_consumables' => Consumable::count(),
-            'pending_payments' => Payment::pending()->count(),
-            'overdue_payments' => Payment::overdue()->count(),
-            'completed_payments' => Payment::completed()->count(),
-            'recent_activities' => ($user && $user->canViewAuditHistory())
-                ? Activity::with('causer')->latest()->take(10)->get()
+            'pending_payments' => (clone $visiblePayments)->pending()->count(),
+            'overdue_payments' => (clone $visiblePayments)->overdue()->count(),
+            'completed_payments' => (clone $visiblePayments)->completed()->count(),
+            'recent_activities' => $user->canViewAuditHistory()
+                ? Activity::query()
+                    ->with('causer')
+                    ->where('subject_type', Asset::class)
+                    ->whereIn('subject_id', Asset::query()->visibleTo($user)->select('assets.id'))
+                    ->latest()
+                    ->take(10)
+                    ->get()
                 : collect(),
         ];
 

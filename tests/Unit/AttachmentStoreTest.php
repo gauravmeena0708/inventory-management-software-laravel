@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Support\LogOptions;
@@ -23,6 +24,8 @@ use Tests\TestCase;
 
 class AttachmentStoreTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * Test AttachmentStore interface is bound to PrivateDiskAttachmentStore in the container.
      */
@@ -161,23 +164,21 @@ class AttachmentStoreTest extends TestCase
     {
         Storage::fake('private');
 
-        $user = new User([
+        $user = User::factory()->create([
             'name' => 'Store Admin',
             'email' => 'admin@test.local',
             'role' => UserRole::ADMIN,
         ]);
-        $user->id = 1;
 
-        $fileRecord = new FileRecord([
+        $fileRecord = FileRecord::factory()->create([
             'name' => 'FILE-100',
             'subject' => 'Storage Test',
         ]);
-        $fileRecord->id = 42;
 
         $content = 'Test PDF payload content for SHA-256 calculation';
         $uploadedFile = UploadedFile::fake()->createWithContent('contract.pdf', $content);
 
-        $store = new PrivateDiskAttachmentStore();
+        $store = new PrivateDiskAttachmentStore;
         $attachment = $store->store($uploadedFile, $fileRecord, $user, 'private');
 
         $this->assertInstanceOf(Attachment::class, $attachment);
@@ -185,8 +186,8 @@ class AttachmentStoreTest extends TestCase
         $this->assertSame('contract.pdf', $attachment->original_name);
         $this->assertSame(hash('sha256', $content), $attachment->checksum);
         $this->assertSame(FileRecord::class, $attachment->attachable_type);
-        $this->assertSame(42, $attachment->attachable_id);
-        $this->assertSame(1, $attachment->uploaded_by);
+        $this->assertSame($fileRecord->id, $attachment->attachable_id);
+        $this->assertSame($user->id, $attachment->uploaded_by);
 
         Storage::disk('private')->assertExists($attachment->path);
     }
@@ -214,7 +215,7 @@ class AttachmentStoreTest extends TestCase
             'uploaded_by' => 1,
         ]);
 
-        $store = new PrivateDiskAttachmentStore();
+        $store = new PrivateDiskAttachmentStore;
         $response = $store->retrieve($attachment);
 
         $this->assertInstanceOf(StreamedResponse::class, $response);
@@ -244,7 +245,7 @@ class AttachmentStoreTest extends TestCase
             'uploaded_by' => 1,
         ]);
 
-        $store = new PrivateDiskAttachmentStore();
+        $store = new PrivateDiskAttachmentStore;
         $result = $store->delete($attachment);
 
         $this->assertTrue($result);

@@ -76,6 +76,17 @@ class Payment extends Model
     }
 
     /**
+     * Payments inherit organizational ownership from their agreement.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $query->whereHas(
+            'agreement',
+            fn (Builder $agreementQuery): Builder => $agreementQuery->visibleTo($user)
+        );
+    }
+
+    /**
      * Scope a query to only include pending payments.
      */
     public function scopePending(Builder $query): Builder

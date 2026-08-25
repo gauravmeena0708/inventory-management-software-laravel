@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Authorization\OrganizationalVisibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +15,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Agreement extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -34,6 +35,7 @@ class Agreement extends Model
         'paid_till',
         'remarks',
         'legacy_payload',
+        'organizational_unit_id',
     ];
 
     /**
@@ -85,6 +87,16 @@ class Agreement extends Model
     public function attachments(): MorphMany
     {
         return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    public function organizationalUnit(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return app(OrganizationalVisibility::class)->apply($query, $user);
     }
 
     /**

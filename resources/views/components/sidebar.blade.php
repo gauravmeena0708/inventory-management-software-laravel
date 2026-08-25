@@ -200,6 +200,17 @@
             <div class="px-3 mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Master Data</div>
             <ul class="space-y-1">
                 <li>
+                    <a
+                        href="{{ route('organization.hierarchy') }}"
+                        class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('organization.*') ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"
+                    >
+                        <svg class="w-5 h-5 flex-shrink-0 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h6m4 0h6M4 18h4m4 0h8"/>
+                        </svg>
+                        <span>Organization & Sites</span>
+                    </a>
+                </li>
+                <li>
                     <a 
                         href="{{ route('locations.index') }}" 
                         class="flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors {{ request()->routeIs('locations.*') ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}"

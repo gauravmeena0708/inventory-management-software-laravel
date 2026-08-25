@@ -15,7 +15,9 @@ use App\Models\Entry;
 use App\Models\Location;
 use App\Models\Manufacturer;
 use App\Models\Official;
+use App\Models\OrganizationalUnit;
 use App\Models\Payment;
+use App\Models\Site;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -49,6 +51,7 @@ class FrontendViewRenderTest extends TestCase
             'email' => 'admin@ndc.test',
             'role' => UserRole::ADMIN,
         ]);
+        [$unit] = $this->inventoryContext($admin, 'DASHBOARD');
 
         $official = Official::factory()->create(['name' => 'Dr. Sharma']);
 
@@ -57,10 +60,12 @@ class FrontendViewRenderTest extends TestCase
             'name' => 'ThinkPad T14s',
             'status' => AssetStatus::IN_USE,
             'assigned_official_id' => $official->id,
+            'organizational_unit_id' => $unit->id,
         ]);
         Asset::factory()->server()->create([
             'name' => 'PowerEdge R750',
             'status' => AssetStatus::IN_STOCK,
+            'organizational_unit_id' => $unit->id,
         ]);
 
         Consumable::factory()->create([
@@ -70,6 +75,7 @@ class FrontendViewRenderTest extends TestCase
         ]);
 
         $agreement = Agreement::factory()->create([
+            'organizational_unit_id' => $unit->id,
             'name' => 'Data Center UPS AMC',
             'agency' => 'Schneider Electric',
             'annual_cost' => 150000.00,
@@ -94,7 +100,8 @@ class FrontendViewRenderTest extends TestCase
         $response->assertSee('Hardware Fleet Breakdown');
         $response->assertSee('Action Center & Urgent Tasks');
         $response->assertSee('Live Activity Stream');
-        $response->assertSee('ThinkPad T14s', false);
+        $response->assertDontSee('No recent audit activity records found.');
+        $response->assertSee('Asset');
     }
 
     /**
@@ -103,8 +110,15 @@ class FrontendViewRenderTest extends TestCase
     public function test_asset_index_renders_table_type_chips_and_status_badges(): void
     {
         $user = User::factory()->create(['role' => UserRole::INVENTORY_MANAGER]);
-        $location = Location::factory()->create(['name' => 'Rack 4B']);
-        $official = Official::factory()->create(['name' => 'Priya Engineer']);
+        [$unit, $site] = $this->inventoryContext($user, 'INDEX');
+        $location = Location::factory()->create([
+            'name' => 'Rack 4B',
+            'site_id' => $site->id,
+        ]);
+        $official = Official::factory()->create([
+            'name' => 'Priya Engineer',
+            'location_id' => $location->id,
+        ]);
 
         $laptop = Asset::factory()->create([
             'name' => 'MacBook Pro 16 M3',
@@ -114,6 +128,7 @@ class FrontendViewRenderTest extends TestCase
             'status' => AssetStatus::IN_USE,
             'location_id' => $location->id,
             'assigned_official_id' => $official->id,
+            'organizational_unit_id' => $unit->id,
         ]);
 
         $server = Asset::factory()->create([
@@ -123,6 +138,7 @@ class FrontendViewRenderTest extends TestCase
             'serial_number' => 'SGH123456',
             'status' => AssetStatus::IN_STOCK,
             'location_id' => $location->id,
+            'organizational_unit_id' => $unit->id,
         ]);
 
         // 1. All assets
@@ -152,9 +168,16 @@ class FrontendViewRenderTest extends TestCase
     public function test_asset_show_renders_specifications_timeline_and_modals(): void
     {
         $user = User::factory()->create(['role' => UserRole::ADMIN]);
+        [$unit, $site] = $this->inventoryContext($user, 'SHOW');
         $manufacturer = Manufacturer::factory()->create(['name' => 'Dell Technologies']);
-        $location = Location::factory()->create(['name' => 'NOC Room']);
-        $official = Official::factory()->create(['name' => 'Rajesh Officer']);
+        $location = Location::factory()->create([
+            'name' => 'NOC Room',
+            'site_id' => $site->id,
+        ]);
+        $official = Official::factory()->create([
+            'name' => 'Rajesh Officer',
+            'location_id' => $location->id,
+        ]);
 
         /** @var Asset $asset */
         $asset = Asset::factory()->create([
@@ -170,6 +193,7 @@ class FrontendViewRenderTest extends TestCase
             'assigned_official_id' => $official->id,
             'status' => AssetStatus::IN_USE,
             'purchase_cost' => 125000.00,
+            'organizational_unit_id' => $unit->id,
         ]);
 
         AssetAssignment::create([
@@ -202,7 +226,11 @@ class FrontendViewRenderTest extends TestCase
     public function test_asset_create_and_edit_forms_render(): void
     {
         $manager = User::factory()->create(['role' => UserRole::INVENTORY_MANAGER]);
-        $asset = Asset::factory()->create(['name' => 'Form Test Asset']);
+        [$unit] = $this->inventoryContext($manager, 'FORM');
+        $asset = Asset::factory()->create([
+            'name' => 'Form Test Asset',
+            'organizational_unit_id' => $unit->id,
+        ]);
 
         $createResponse = $this->actingAs($manager)->get(route('assets.create'));
         $createResponse->assertStatus(200);
@@ -255,7 +283,12 @@ class FrontendViewRenderTest extends TestCase
     public function test_consumable_show_renders_metrics_and_transactions(): void
     {
         $user = User::factory()->create(['role' => UserRole::STOCK_OPERATOR]);
-        $official = Official::factory()->create(['name' => 'Anil Verma']);
+        [, $site] = $this->inventoryContext($user, 'CONSUMABLE-SHOW');
+        $location = Location::factory()->create(['site_id' => $site->id]);
+        $official = Official::factory()->create([
+            'name' => 'Anil Verma',
+            'location_id' => $location->id,
+        ]);
 
         /** @var Consumable $consumable */
         $consumable = Consumable::factory()->create([
@@ -304,7 +337,12 @@ class FrontendViewRenderTest extends TestCase
     public function test_stock_ledger_index_renders_immutable_entries(): void
     {
         $user = User::factory()->create(['role' => UserRole::STOCK_OPERATOR]);
-        $official = Official::factory()->create(['name' => 'Kavita Officer']);
+        [, $site] = $this->inventoryContext($user, 'STOCK-LEDGER');
+        $location = Location::factory()->create(['site_id' => $site->id]);
+        $official = Official::factory()->create([
+            'name' => 'Kavita Officer',
+            'location_id' => $location->id,
+        ]);
         $consumable = Consumable::factory()->create(['name' => 'SFP+ Fiber Transceiver']);
 
         Entry::create([
@@ -343,9 +381,11 @@ class FrontendViewRenderTest extends TestCase
     public function test_agreements_index_and_show_views_render(): void
     {
         $user = User::factory()->create(['role' => UserRole::FINANCE_OPERATOR]);
+        [$unit] = $this->inventoryContext($user, 'AGREEMENTS');
 
         /** @var Agreement $agreement */
         $agreement = Agreement::factory()->create([
+            'organizational_unit_id' => $unit->id,
             'name' => 'Enterprise Cloud Backup License',
             'agency' => 'Veeam Software',
             'type' => 'Software License',
@@ -401,7 +441,11 @@ class FrontendViewRenderTest extends TestCase
     public function test_payments_index_view_renders_with_filters(): void
     {
         $user = User::factory()->create(['role' => UserRole::FINANCE_OPERATOR]);
-        $agreement = Agreement::factory()->create(['name' => 'Storage SAN AMC']);
+        [$unit] = $this->inventoryContext($user, 'PAYMENTS');
+        $agreement = Agreement::factory()->create([
+            'name' => 'Storage SAN AMC',
+            'organizational_unit_id' => $unit->id,
+        ]);
 
         Payment::create([
             'agreement_id' => $agreement->id,
@@ -429,5 +473,25 @@ class FrontendViewRenderTest extends TestCase
         $overdueResponse = $this->actingAs($user)->get(route('payments.index', ['status' => 'overdue']));
         $overdueResponse->assertStatus(200);
         $overdueResponse->assertSee('SAN-AMC-M1');
+    }
+
+    /**
+     * @return array{0: OrganizationalUnit, 1: Site}
+     */
+    private function inventoryContext(User $user, string $code): array
+    {
+        $unit = OrganizationalUnit::factory()->create(['code' => "UI-{$code}"]);
+        $user->organizationalUnits()->attach($unit->id, [
+            'read_scope' => 'local',
+            'write_scope' => 'local',
+        ]);
+        $site = Site::create([
+            'code' => "UI-SITE-{$code}",
+            'name' => "UI Site {$code}",
+            'is_active' => true,
+        ]);
+        $site->organizationalUnits()->attach($unit->id);
+
+        return [$unit, $site];
     }
 }

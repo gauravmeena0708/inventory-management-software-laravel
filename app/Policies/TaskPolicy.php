@@ -5,6 +5,8 @@ namespace App\Policies;
 use App\Enums\UserRole;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\Authorization\OrganizationalVisibility;
+use App\Services\Organization\OrganizationalContext;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class TaskPolicy
@@ -24,7 +26,9 @@ class TaskPolicy
      */
     public function view(User $user, ?Task $task = null): bool
     {
-        return $user->canViewInventory();
+        return $user->canViewInventory()
+            && $task instanceof Task
+            && app(OrganizationalVisibility::class)->canRead($user, $task->organizational_unit_id);
     }
 
     /**
@@ -40,7 +44,8 @@ class TaskPolicy
      */
     public function update(User $user, ?Task $task = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER, UserRole::STOCK_OPERATOR);
+        return $this->canWrite($user, $task)
+            && $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER, UserRole::STOCK_OPERATOR);
     }
 
     /**
@@ -48,6 +53,15 @@ class TaskPolicy
      */
     public function delete(User $user, ?Task $task = null): bool
     {
-        return $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+        return $this->canWrite($user, $task)
+            && $user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER);
+    }
+
+    private function canWrite(User $user, ?Task $task): bool
+    {
+        return $task instanceof Task
+            && $task->organizational_unit_id !== null
+            && $task->organizationalUnit()->active()->exists()
+            && app(OrganizationalContext::class)->canWrite($user, $task->organizational_unit_id);
     }
 }

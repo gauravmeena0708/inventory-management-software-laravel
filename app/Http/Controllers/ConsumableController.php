@@ -58,7 +58,7 @@ class ConsumableController extends Controller
     public function store(StoreConsumableRequest $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validated();
-        if (!isset($validated['in_stock'])) {
+        if (! isset($validated['in_stock'])) {
             $validated['in_stock'] = 0;
         }
 
@@ -83,7 +83,13 @@ class ConsumableController extends Controller
         $this->authorize('view', $consumable);
 
         $consumable->load([
-            'entries' => fn ($q) => $q->with(['recipient', 'recorder'])->latest('id')->take(50),
+            'entries' => fn ($q) => $q
+                ->with([
+                    'recipient' => fn ($officialQuery) => $officialQuery->visibleTo($request->user()),
+                    'recorder',
+                ])
+                ->latest('id')
+                ->take(50),
         ]);
 
         if ($request->wantsJson()) {
@@ -92,7 +98,7 @@ class ConsumableController extends Controller
 
         return view('consumables.show', [
             'consumable' => $consumable,
-            'officials' => Official::orderBy('name')->get(),
+            'officials' => Official::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 

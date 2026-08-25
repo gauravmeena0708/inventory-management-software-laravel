@@ -26,6 +26,7 @@ class StoreAssetRequest extends FormRequest
             'part_code' => ['nullable', 'string', 'max:191'],
             'manufacturer_id' => ['nullable', 'exists:manufacturers,id'],
             'location_id' => ['nullable', 'exists:locations,id'],
+            'organizational_unit_id' => ['nullable', 'exists:organizational_units,id'],
             'assigned_official_id' => ['nullable', 'exists:officials,id'],
             'status' => ['nullable', Rule::enum(AssetStatus::class)],
             'ip_address' => ['nullable', 'string', 'max:45'],

@@ -13,9 +13,10 @@ use App\Models\Consumable;
 use App\Models\Location;
 use App\Models\Manufacturer;
 use App\Models\Official;
+use App\Models\OrganizationalUnit;
 use App\Models\Payment;
+use App\Models\Site;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -38,10 +39,11 @@ class HttpRoutesTest extends TestCase
     public function test_authenticated_admin_can_access_dashboard_and_kpis(): void
     {
         $admin = User::factory()->create(['role' => UserRole::ADMIN]);
+        $unit = OrganizationalUnit::factory()->create();
 
         // Create some sample data
-        Asset::factory()->laptop()->inStock()->create();
-        Asset::factory()->server()->inUse()->create();
+        Asset::factory()->laptop()->inStock()->create(['organizational_unit_id' => $unit->id]);
+        Asset::factory()->server()->inUse()->create(['organizational_unit_id' => $unit->id]);
         Consumable::factory()->create(['in_stock' => 1, 'min_quantity' => 5]); // low stock
 
         $response = $this->actingAs($admin)->get(route('dashboard'));
@@ -68,9 +70,23 @@ class HttpRoutesTest extends TestCase
     public function test_asset_lifecycle_filtering_and_export_endpoints(): void
     {
         $manager = User::factory()->create(['role' => UserRole::INVENTORY_MANAGER]);
-        $location = Location::factory()->create(['name' => 'HQ Floor 2']);
+        $unit = OrganizationalUnit::factory()->create();
+        $manager->organizationalUnits()->attach($unit->id, ['write_scope' => 'local']);
+        $site = Site::create([
+            'code' => 'HTTP-HQ',
+            'name' => 'HTTP Test Headquarters',
+            'is_active' => true,
+        ]);
+        $site->organizationalUnits()->attach($unit->id);
+        $location = Location::factory()->create([
+            'name' => 'HQ Floor 2',
+            'site_id' => $site->id,
+        ]);
         $manufacturer = Manufacturer::factory()->create(['name' => 'Dell']);
-        $official = Official::factory()->create(['name' => 'Bob Engineer']);
+        $official = Official::factory()->create([
+            'name' => 'Bob Engineer',
+            'location_id' => $location->id,
+        ]);
 
         // 1. Create asset via POST /assets
         $createResponse = $this->actingAs($manager)->post(route('assets.store'), [
@@ -206,9 +222,15 @@ class HttpRoutesTest extends TestCase
     public function test_agreement_creation_and_payment_completion(): void
     {
         $finOp = User::factory()->create(['role' => UserRole::FINANCE_OPERATOR]);
+        $unit = OrganizationalUnit::factory()->create(['code' => 'HTTP-AGREEMENTS']);
+        $finOp->organizationalUnits()->attach($unit->id, [
+            'read_scope' => 'local',
+            'write_scope' => 'local',
+        ]);
 
         // 1. Finance Operator creates Agreement
         $agreementResponse = $this->actingAs($finOp)->post(route('agreements.store'), [
+            'organizational_unit_id' => $unit->id,
             'name' => 'Firewall Support & AMC 2026',
             'agency' => 'Fortinet Inc',
             'type' => 'Service',

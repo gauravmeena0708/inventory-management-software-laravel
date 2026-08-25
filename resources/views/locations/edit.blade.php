@@ -1,16 +1,13 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-6">Edit Location</h1>
-    <form action="{{ route('locations.update', $location) }}" method="POST" class="bg-white p-6 rounded shadow max-w-2xl">
+<div class="mx-auto max-w-3xl space-y-6">
+    <header><h1 class="text-2xl font-bold text-slate-900">Edit {{ $location->name }}</h1><p class="mt-1 text-sm text-slate-600">Move this location only to an authorized compatible parent.</p></header>
+    <form action="{{ route('locations.update', $location) }}" method="POST" class="card card-body space-y-6">
         @csrf
         @method('PUT')
-        <div class="mb-4">
-            <label class="block text-gray-700 font-bold mb-2">Name</label>
-            <input type="text" name="name" value="{{ old('name', $location->name) }}" class="border rounded w-full py-2 px-3" required>
-        </div>
-        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded">Update Location</button>
+        @include('locations._form')
+        <div class="flex gap-3"><button type="submit" class="btn btn-primary">Update location</button><a class="btn btn-secondary" href="{{ route('locations.show', $location) }}">Cancel</a></div>
     </form>
 </div>
 @endsection

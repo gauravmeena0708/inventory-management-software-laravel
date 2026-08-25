@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,7 +13,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Official extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -56,6 +57,17 @@ class Official extends Model
     }
 
     /**
+     * Officials inherit visibility from their current mapped physical location.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return $query->whereHas(
+            'location',
+            fn (Builder $locationQuery): Builder => $locationQuery->visibleTo($user)
+        );
+    }
+
+    /**
      * Get all assets currently assigned to this official (alias for backward compatibility).
      */
     public function assignedAssets(): HasMany
@@ -77,5 +89,10 @@ class Official extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(Entry::class, 'recipient_official_id');
+    }
+
+    public function stockTransactions(): HasMany
+    {
+        return $this->hasMany(StockTransaction::class, 'recipient_official_id');
     }
 }

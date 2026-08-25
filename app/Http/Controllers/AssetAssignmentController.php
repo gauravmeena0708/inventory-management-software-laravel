@@ -25,6 +25,7 @@ class AssetAssignmentController extends Controller
         $this->authorize('assign', $asset);
 
         $official = Official::findOrFail($request->validated('official_id'));
+        $this->authorize('view', $official);
 
         $assignment = $action->execute(
             asset: $asset,

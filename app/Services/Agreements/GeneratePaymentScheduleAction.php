@@ -16,6 +16,7 @@ class GeneratePaymentScheduleAction
      * Generate an idempotent milestone payment schedule for an agreement.
      *
      * @return Collection<int, Payment>
+     *
      * @throws InvalidArgumentException
      */
     public function execute(Agreement $agreement): Collection
@@ -56,7 +57,10 @@ class GeneratePaymentScheduleAction
                 $targetMonth = $anchor->copy()->startOfMonth()->addMonths($step * $interval);
 
                 if ($isLastDayOfMonth) {
-                    $dueDate = $targetMonth->copy()->endOfMonth();
+                    // Compare date-only values. Carbon's endOfMonth() otherwise leaves
+                    // the time at 23:59:59, which incorrectly excludes an expiry on
+                    // that same calendar day (for example April 30).
+                    $dueDate = $targetMonth->copy()->endOfMonth()->startOfDay();
                 } else {
                     $daysInMonth = $targetMonth->copy()->endOfMonth()->day;
                     $dueDate = $targetMonth->copy()->day(min($anchorDay, $daysInMonth));

@@ -69,12 +69,17 @@ return [
             'host' => env('LEGACY_DB_HOST', env('DB_HOST', '127.0.0.1')),
             'port' => env('LEGACY_DB_PORT', env('DB_PORT', '3306')),
             'database' => env('LEGACY_DB_DATABASE', 'inventory_legacy'),
-            'username' => env('LEGACY_DB_USERNAME', env('DB_USERNAME', 'forge')),
-            'password' => env('LEGACY_DB_PASSWORD', env('DB_PASSWORD', '')),
+            // Use a database account granted SELECT only. Never fall back to the
+            // application's read/write credentials for the source database.
+            'username' => env('LEGACY_DB_USERNAME', 'legacy_reader'),
+            'password' => env('LEGACY_DB_PASSWORD', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
             'read_only' => true,
+            'options' => extension_loaded('pdo_mysql') ? [
+                PDO::MYSQL_ATTR_INIT_COMMAND => 'SET SESSION TRANSACTION READ ONLY',
+            ] : [],
         ],
 
         'pgsql' => [

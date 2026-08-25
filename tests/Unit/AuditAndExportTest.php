@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Services\Audit\SpatieAuditRecorder;
 use App\Services\Export\MaatwebsiteTabularExporter;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
@@ -134,7 +135,7 @@ class AuditAndExportTest extends TestCase
             'amc_end' => Carbon::parse('2027-06-30'),
         ]);
 
-        $export = new AssetsExport();
+        $export = new AssetsExport(Asset::query(), User::factory()->admin()->create());
 
         $expectedHeadings = [
             'Asset Tag',
@@ -184,7 +185,7 @@ class AuditAndExportTest extends TestCase
             'amc_end' => null,
         ]);
 
-        $export = new AssetsExport();
+        $export = new AssetsExport(Asset::query(), User::factory()->admin()->create());
         $mappedRow = $export->map($asset);
 
         $this->assertSame([
@@ -217,7 +218,7 @@ class AuditAndExportTest extends TestCase
             'paid_till' => Carbon::parse('2026-12-31'),
         ]);
 
-        $export = new AgreementsExport();
+        $export = new AgreementsExport;
 
         $expectedHeadings = [
             'Agreement Name',
@@ -262,7 +263,7 @@ class AuditAndExportTest extends TestCase
             'paid_till' => null,
         ]);
 
-        $export = new AgreementsExport();
+        $export = new AgreementsExport;
         $mappedRow = $export->map($agreement);
 
         $this->assertSame([
@@ -282,15 +283,16 @@ class AuditAndExportTest extends TestCase
      */
     public function test_export_query_builders(): void
     {
-        $assetsExport = new AssetsExport();
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Builder::class, $assetsExport->query());
+        $user = User::factory()->admin()->create();
+        $assetsExport = new AssetsExport(Asset::query(), $user);
+        $this->assertInstanceOf(Builder::class, $assetsExport->query());
 
         $customAssetQuery = Asset::where('status', AssetStatus::IN_STOCK->value);
-        $customAssetsExport = new AssetsExport($customAssetQuery);
+        $customAssetsExport = new AssetsExport($customAssetQuery, $user);
         $this->assertSame($customAssetQuery, $customAssetsExport->query());
 
-        $agreementsExport = new AgreementsExport();
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Builder::class, $agreementsExport->query());
+        $agreementsExport = new AgreementsExport;
+        $this->assertInstanceOf(Builder::class, $agreementsExport->query());
 
         $customAgreementQuery = Agreement::where('currency', 'USD');
         $customAgreementsExport = new AgreementsExport($customAgreementQuery);
@@ -305,7 +307,7 @@ class AuditAndExportTest extends TestCase
         Excel::fake();
 
         $exporter = app(TabularExporter::class);
-        $export = new AssetsExport();
+        $export = new AssetsExport(Asset::query(), User::factory()->admin()->create());
 
         $response = $exporter->download($export, 'inventory_assets.xlsx');
 
@@ -324,7 +326,7 @@ class AuditAndExportTest extends TestCase
         Excel::fake();
 
         $exporter = app(TabularExporter::class);
-        $export = new AgreementsExport();
+        $export = new AgreementsExport;
 
         $result = $exporter->store($export, 'exports/agreements_2026.xlsx', 'private');
 

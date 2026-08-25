@@ -1,15 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-6">Create Location</h1>
-    <form action="{{ route('locations.store') }}" method="POST" class="bg-white p-6 rounded shadow max-w-2xl">
+<div class="mx-auto max-w-3xl space-y-6">
+    <header><h1 class="text-2xl font-bold text-slate-900">Create structured location</h1><p class="mt-1 text-sm text-slate-600">Only sites and parents writable in the active organizational context are available.</p></header>
+    <form action="{{ route('locations.store') }}" method="POST" class="card card-body space-y-6">
         @csrf
-        <div class="mb-4">
-            <label class="block text-gray-700 font-bold mb-2">Name</label>
-            <input type="text" name="name" class="border rounded w-full py-2 px-3" required>
-        </div>
-        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded">Save Location</button>
+        @include('locations._form')
+        <div class="flex gap-3"><button type="submit" class="btn btn-primary">Save location</button><a class="btn btn-secondary" href="{{ route('organization.hierarchy') }}">Cancel</a></div>
     </form>
 </div>
 @endsection

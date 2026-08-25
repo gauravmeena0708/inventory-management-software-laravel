@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Authorization\OrganizationalVisibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,7 +13,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Task extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -28,6 +29,7 @@ class Task extends Model
         'status',
         'due_date',
         'remarks',
+        'organizational_unit_id',
     ];
 
     /**
@@ -74,6 +76,16 @@ class Task extends Model
     public function file(): BelongsTo
     {
         return $this->belongsTo(FileRecord::class, 'file_id');
+    }
+
+    public function organizationalUnit(): BelongsTo
+    {
+        return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return app(OrganizationalVisibility::class)->apply($query, $user);
     }
 
     /**

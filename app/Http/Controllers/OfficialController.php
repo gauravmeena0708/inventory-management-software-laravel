@@ -20,7 +20,12 @@ class OfficialController extends Controller
     {
         $this->authorize('viewAny', Official::class);
 
-        $query = Official::query()->with('location')->withCount('assets');
+        $query = Official::query()
+            ->visibleTo($request->user())
+            ->with('location')
+            ->withCount([
+                'assets' => fn ($assetQuery) => $assetQuery->visibleTo($request->user()),
+            ]);
 
         if ($request->filled('search')) {
             $term = $request->input('search');
@@ -44,7 +49,7 @@ class OfficialController extends Controller
 
         return view('officials.index', [
             'officials' => $officials,
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => Location::visibleTo($request->user())->orderBy('name')->get(),
             'filters' => $request->only(['search', 'location_id']),
         ]);
     }
@@ -52,12 +57,12 @@ class OfficialController extends Controller
     /**
      * Show the form for creating a new official.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorize('create', Official::class);
 
         return view('officials.create', [
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => Location::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -88,8 +93,12 @@ class OfficialController extends Controller
 
         $official->load([
             'location',
-            'assets' => fn ($q) => $q->with(['manufacturer', 'location']),
-            'assignments' => fn ($q) => $q->with('asset')->latest('assigned_at')->take(20),
+            'assets' => fn ($q) => $q->visibleTo($request->user())->with(['manufacturer', 'location']),
+            'assignments' => fn ($q) => $q
+                ->whereHas('asset', fn ($assetQuery) => $assetQuery->visibleTo($request->user()))
+                ->with('asset')
+                ->latest('assigned_at')
+                ->take(20),
             'entries' => fn ($q) => $q->with('consumable')->latest('id')->take(20),
         ]);
 
@@ -106,13 +115,13 @@ class OfficialController extends Controller
     /**
      * Show the form for editing the specified official.
      */
-    public function edit(Official $official): View
+    public function edit(Request $request, Official $official): View
     {
         $this->authorize('update', $official);
 
         return view('officials.edit', [
             'official' => $official,
-            'locations' => Location::orderBy('name')->get(),
+            'locations' => Location::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 

@@ -7,6 +7,7 @@ use App\Models\Agreement;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<Payment>
@@ -38,11 +39,9 @@ class PaymentFactory extends Factory
             'status' => PaymentStatus::PENDING,
             'invoice_number' => null,
             'remarks' => null,
-            'schedule_key' => function (array $attributes) use ($dueDate) {
-                $agreementId = $attributes['agreement_id'] ?? 1;
-                $date = $attributes['due_date'] ?? $dueDate;
-                return sha1("{$agreementId}-{$date}");
-            },
+            // Relationship factories are not expanded when dependent attribute
+            // closures run, so do not interpolate AgreementFactory here.
+            'schedule_key' => sha1($dueDate.'-'.Str::uuid()),
             'completed_by' => null,
             'legacy_id' => null,
         ];
@@ -69,7 +68,7 @@ class PaymentFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'status' => PaymentStatus::COMPLETED,
             'paid_date' => now()->toDateString(),
-            'invoice_number' => $invoice ?? 'INV-2026-' . $this->faker->numerify('#####'),
+            'invoice_number' => $invoice ?? 'INV-2026-'.$this->faker->numerify('#####'),
             'completed_by' => $user?->id ?? User::factory(),
         ]);
     }
@@ -81,12 +80,11 @@ class PaymentFactory extends Factory
     {
         return $this->state(function (array $attributes) use ($days) {
             $dueDate = now()->subDays($days)->toDateString();
-            $agreementId = $attributes['agreement_id'] ?? 1;
 
             return [
                 'status' => PaymentStatus::PENDING,
                 'due_date' => $dueDate,
-                'schedule_key' => sha1("{$agreementId}-{$dueDate}"),
+                'schedule_key' => sha1($dueDate.'-'.Str::uuid()),
             ];
         });
     }

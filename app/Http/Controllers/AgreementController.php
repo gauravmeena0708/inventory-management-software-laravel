@@ -24,7 +24,9 @@ class AgreementController extends Controller
     {
         $this->authorize('viewAny', Agreement::class);
 
-        $query = Agreement::query()->withCount('payments');
+        $query = Agreement::query()
+            ->visibleTo($request->user())
+            ->withCount('payments');
 
         if ($request->input('filter') === 'expired') {
             $query->expired();
@@ -56,12 +58,12 @@ class AgreementController extends Controller
     /**
      * Show the form for creating a new agreement.
      */
-    public function create(): View
+    public function create(Request $request): View
     {
         $this->authorize('create', Agreement::class);
 
         return view('agreements.create', [
-            'files' => FileRecord::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -98,10 +100,11 @@ class AgreementController extends Controller
     {
         $this->authorize('view', $agreement);
 
+        $user = $request->user();
         $agreement->load([
-            'payments' => fn ($q) => $q->orderBy('due_date'),
-            'file',
-            'attachments',
+            'payments' => fn ($q) => $q->visibleTo($user)->orderBy('due_date'),
+            'file' => fn ($q) => $q->visibleTo($user),
+            'attachments' => fn ($q) => $q->visibleTo($user),
         ]);
 
         if ($request->wantsJson()) {
@@ -114,13 +117,13 @@ class AgreementController extends Controller
     /**
      * Show the form for editing the specified agreement.
      */
-    public function edit(Agreement $agreement): View
+    public function edit(Request $request, Agreement $agreement): View
     {
         $this->authorize('update', $agreement);
 
         return view('agreements.edit', [
             'agreement' => $agreement,
-            'files' => FileRecord::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
         ]);
     }
 
@@ -166,7 +169,7 @@ class AgreementController extends Controller
     {
         $this->authorize('export', Agreement::class);
 
-        $query = Agreement::query();
+        $query = Agreement::query()->visibleTo($request->user());
 
         if ($request->input('filter') === 'expired') {
             $query->expired();
@@ -183,7 +186,7 @@ class AgreementController extends Controller
             });
         }
 
-        $filename = 'agreements-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = 'agreements-'.now()->format('Y-m-d-His').'.xlsx';
 
         return $exporter->download(new AgreementsExport($query), $filename);
     }

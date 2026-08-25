@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
+use App\Services\Authorization\OrganizationalVisibility;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,7 +18,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class Asset extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -176,8 +177,17 @@ class Asset extends Model
     public function currentPlacement(): HasOne
     {
         return $this->hasOne(AssetPlacement::class, 'asset_id')
+            ->where('open_marker', true)
             ->whereNull('removed_at')
             ->latestOfMany('placed_at');
+    }
+
+    /**
+     * Scope assets to organizational units visible to an explicit user.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        return app(OrganizationalVisibility::class)->apply($query, $user);
     }
 
     /**

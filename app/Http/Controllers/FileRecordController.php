@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
 use App\Http\Requests\StoreFileRecordRequest;
 use App\Http\Requests\UpdateFileRecordRequest;
 use App\Models\FileRecord;
@@ -18,12 +17,12 @@ class FileRecordController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
-        $user = $request->user();
-        if ($user && !$user->canViewInventory()) {
-            abort(403, 'Unauthorized to view file records.');
-        }
+        $this->authorize('viewAny', FileRecord::class);
 
-        $query = FileRecord::query()->with('attachments');
+        $user = $request->user();
+        $query = FileRecord::query()
+            ->visibleTo($user)
+            ->with(['attachments' => fn ($attachmentQuery) => $attachmentQuery->visibleTo($user)]);
 
         if ($request->filled('search')) {
             $term = $request->input('search');
@@ -56,10 +55,7 @@ class FileRecordController extends Controller
      */
     public function create(Request $request): View
     {
-        $user = $request->user();
-        if ($user && !$user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER, UserRole::FINANCE_OPERATOR)) {
-            abort(403, 'Unauthorized to create file records.');
-        }
+        $this->authorize('create', FileRecord::class);
 
         return view('files.create');
     }
@@ -87,12 +83,9 @@ class FileRecordController extends Controller
      */
     public function show(Request $request, FileRecord $file): View|JsonResponse
     {
-        $user = $request->user();
-        if ($user && !$user->canViewInventory()) {
-            abort(403, 'Unauthorized to view file records.');
-        }
+        $this->authorize('view', $file);
 
-        $file->load('attachments');
+        $file->load(['attachments' => fn ($query) => $query->visibleTo($request->user())]);
 
         if ($request->wantsJson()) {
             return response()->json($file);
@@ -106,10 +99,7 @@ class FileRecordController extends Controller
      */
     public function edit(Request $request, FileRecord $file): View
     {
-        $user = $request->user();
-        if ($user && !$user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER, UserRole::FINANCE_OPERATOR)) {
-            abort(403, 'Unauthorized to edit file records.');
-        }
+        $this->authorize('update', $file);
 
         return view('files.edit', ['file' => $file]);
     }
@@ -137,10 +127,7 @@ class FileRecordController extends Controller
      */
     public function destroy(Request $request, FileRecord $file): RedirectResponse|JsonResponse
     {
-        $user = $request->user();
-        if ($user && !$user->hasRole(UserRole::ADMIN, UserRole::INVENTORY_MANAGER)) {
-            abort(403, 'Unauthorized to delete file records.');
-        }
+        $this->authorize('delete', $file);
 
         $file->delete();
 

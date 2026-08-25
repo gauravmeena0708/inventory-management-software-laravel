@@ -6,6 +6,7 @@ use App\Enums\OrganizationalUnitType;
 use App\Models\OrganizationalUnit;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -108,5 +109,37 @@ class OrganizationalUnitSchemaTest extends TestCase
         $unit->delete();
 
         $this->assertSoftDeleted('organizational_units', ['id' => $unitId]);
+    }
+
+    public function test_migration_can_be_rolled_back_in_an_isolated_database(): void
+    {
+        $originalDefault = config('database.default');
+        $connection = 'organizational_unit_rollback';
+
+        config([
+            "database.connections.{$connection}" => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+                'foreign_key_constraints' => true,
+            ],
+            'database.default' => $connection,
+        ]);
+
+        DB::purge($connection);
+
+        try {
+            $migration = require database_path('migrations/2026_08_25_000010_create_organizational_units_table.php');
+
+            $migration->up();
+            $this->assertTrue(Schema::hasTable('organizational_units'));
+
+            $migration->down();
+            $this->assertFalse(Schema::hasTable('organizational_units'));
+        } finally {
+            DB::disconnect($connection);
+            config(['database.default' => $originalDefault]);
+            DB::purge($connection);
+        }
     }
 }

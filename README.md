@@ -62,6 +62,12 @@ Configure your database credentials in `.env` (or use the default SQLite databas
 ```bash
 # Run database migrations and seed synthetic faker dataset
 php artisan migrate --seed
+php artisan db:seed --class=EpfoNdcHierarchySeeder
+php artisan epfo:map-ndc-inventory --apply
+
+# Optional: add a broad local-only hierarchy of zones, regions, districts,
+# vigilance, training, directorate, division, and section records.
+php artisan db:seed --class=EpfoHierarchyDemoSeeder
 ```
 
 ### 4. Build Assets & Start Development Server

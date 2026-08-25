@@ -5,21 +5,18 @@ namespace Tests\Feature;
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Enums\PaymentStatus;
+use App\Enums\ServiceExecutionChannel;
 use App\Enums\StockEntryType;
 use App\Models\Agreement;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\Consumable;
-use App\Models\Devcat;
-use App\Models\Developer;
 use App\Models\Entry;
 use App\Models\FileRecord;
 use App\Models\Location;
-use App\Models\Manufacturer;
 use App\Models\Official;
 use App\Models\Payment;
-use App\Models\Task;
-use App\Models\User;
+use App\Services\Authorization\SystemIdentity;
 use App\Services\Importer\LegacyImportManager;
 use App\Services\Importer\ReconciliationReporter;
 use Illuminate\Database\Schema\Blueprint;
@@ -40,9 +37,25 @@ class LegacyImporterVerificationTest extends TestCase
         // Configure legacy connection to point to testing database connection
         $defaultConn = config('database.default');
         config(['database.connections.legacy' => config("database.connections.{$defaultConn}")]);
+        DB::purge('legacy');
+
+        // SQLite :memory: databases are scoped to a PDO connection. Reuse the
+        // isolated default test PDO so the legacy fixture sees the migrated
+        // schema without ever connecting to XAMPP or a real legacy database.
+        $defaultConnection = DB::connection($defaultConn);
+        DB::connection('legacy')
+            ->setPdo($defaultConnection->getPdo())
+            ->setReadPdo($defaultConnection->getReadPdo());
+
+        // The modernized legacy fixture schema retains historical foreign-key
+        // requirements. Seed stable referenced rows so importer scenarios test
+        // mapping behavior instead of failing while arranging fixtures.
+        $location = Location::factory()->create(['id' => 1]);
+        Official::factory()->create(['id' => 1, 'location_id' => $location->id]);
+        FileRecord::factory()->create(['id' => 1]);
 
         // Add any test-specific optional columns if not present in legacy test schema
-        if (Schema::hasTable('desktops') && !Schema::hasColumn('desktops', 'processor')) {
+        if (Schema::hasTable('desktops') && ! Schema::hasColumn('desktops', 'processor')) {
             Schema::table('desktops', function (Blueprint $table) {
                 $table->string('processor')->nullable();
                 $table->string('ram')->nullable();
@@ -50,7 +63,7 @@ class LegacyImporterVerificationTest extends TestCase
             });
         }
 
-        if (Schema::hasTable('laptops') && !Schema::hasColumn('laptops', 'processor')) {
+        if (Schema::hasTable('laptops') && ! Schema::hasColumn('laptops', 'processor')) {
             Schema::table('laptops', function (Blueprint $table) {
                 $table->string('processor')->nullable();
                 $table->string('ram')->nullable();
@@ -71,6 +84,7 @@ class LegacyImporterVerificationTest extends TestCase
             'serial' => 'SN-DESK-01',
             'brand' => 'HP',
             'category' => 'EliteDesk 800',
+            'location_id' => 1,
             'active' => 1,
             'file' => 'FILE-DESK-101',
             'purchased' => '2024-03-15',
@@ -138,7 +152,7 @@ class LegacyImporterVerificationTest extends TestCase
         ]);
 
         $manager = app(LegacyImportManager::class);
-        $result = $manager->import(dryRun: false);
+        $result = $manager->import(identity: $this->legacyImportIdentity(), dryRun: false);
 
         $this->assertTrue($result->isSuccessful());
         $this->assertFalse($result->isDryRun());
@@ -185,12 +199,13 @@ class LegacyImporterVerificationTest extends TestCase
     public function test_importer_creates_asset_assignments_for_assigned_laptops(): void
     {
         // Create an official in target / legacy
-        $official = Official::create([
+        $official = Official::forceCreate([
             'id' => 50,
             'name' => 'Alice Johnson',
             'title' => 'Ms.',
             'designation' => 'Senior Developer',
             'email' => 'alice@example.com',
+            'location_id' => 1,
         ]);
 
         // Seed legacy laptop assigned to official 50
@@ -206,7 +221,7 @@ class LegacyImporterVerificationTest extends TestCase
         ]);
 
         $manager = app(LegacyImportManager::class);
-        $result = $manager->import(dryRun: false);
+        $result = $manager->import(identity: $this->legacyImportIdentity(), dryRun: false);
 
         $this->assertTrue($result->isSuccessful());
 
@@ -264,7 +279,7 @@ class LegacyImporterVerificationTest extends TestCase
         ]);
 
         $manager = app(LegacyImportManager::class);
-        $result = $manager->import(dryRun: false);
+        $result = $manager->import(identity: $this->legacyImportIdentity(), dryRun: false);
 
         $this->assertTrue($result->isSuccessful());
 
@@ -321,7 +336,7 @@ class LegacyImporterVerificationTest extends TestCase
         ]);
 
         $manager = app(LegacyImportManager::class);
-        $result = $manager->import(dryRun: false);
+        $result = $manager->import(identity: $this->legacyImportIdentity(), dryRun: false);
 
         $this->assertTrue($result->isSuccessful());
 
@@ -351,6 +366,7 @@ class LegacyImporterVerificationTest extends TestCase
             'serial' => 'SN-DRY-01',
             'brand' => 'Dell',
             'category' => 'OptiPlex',
+            'location_id' => 1,
             'active' => 1,
             'created_at' => now(),
             'updated_at' => now(),
@@ -367,17 +383,24 @@ class LegacyImporterVerificationTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        $before = [
+            'assets' => Asset::count(),
+            'agreements' => Agreement::count(),
+            'assignments' => AssetAssignment::count(),
+        ];
+
         $manager = app(LegacyImportManager::class);
-        $result = $manager->import(dryRun: true);
+        $result = $manager->import(identity: $this->legacyImportIdentity(), dryRun: true);
 
         $this->assertTrue($result->isSuccessful());
         $this->assertTrue($result->isDryRun());
         $this->assertArrayHasKey('assets_desktop', $result->counts);
 
-        // Verify target database is clean and empty
-        $this->assertEquals(0, Asset::count());
-        $this->assertEquals(0, Agreement::count());
-        $this->assertEquals(0, AssetAssignment::count());
+        // The shared in-memory PDO contains the source fixtures too, so assert
+        // that dry-run restored each target table to its pre-import count.
+        $this->assertEquals($before['assets'], Asset::count());
+        $this->assertEquals($before['agreements'], Agreement::count());
+        $this->assertEquals($before['assignments'], AssetAssignment::count());
     }
 
     /**
@@ -391,6 +414,7 @@ class LegacyImporterVerificationTest extends TestCase
             'serial' => 'SN-REC-01',
             'brand' => 'Lenovo',
             'category' => 'ThinkCentre',
+            'location_id' => 1,
             'active' => 1,
             'created_at' => now(),
             'updated_at' => now(),
@@ -408,7 +432,7 @@ class LegacyImporterVerificationTest extends TestCase
         ]);
 
         $manager = app(LegacyImportManager::class);
-        $manager->import(dryRun: false);
+        $manager->import(identity: $this->legacyImportIdentity(), dryRun: false);
 
         $reporter = app(ReconciliationReporter::class);
         $report = $reporter->generateReport();
@@ -435,6 +459,7 @@ class LegacyImporterVerificationTest extends TestCase
             'serial' => 'SN-CLI-01',
             'brand' => 'HP',
             'category' => 'ProDesk',
+            'location_id' => 1,
             'active' => 1,
             'created_at' => now(),
             'updated_at' => now(),
@@ -457,5 +482,13 @@ class LegacyImporterVerificationTest extends TestCase
         // 4. Test post-import verify mode
         $postVerifyCode = Artisan::call('inventory:import-legacy', ['--verify' => true]);
         $this->assertEquals(0, $postVerifyCode);
+    }
+
+    private function legacyImportIdentity(): SystemIdentity
+    {
+        return SystemIdentity::organizationWide(
+            ServiceExecutionChannel::LEGACY_IMPORT,
+            'Legacy importer verification test'
+        );
     }
 }
