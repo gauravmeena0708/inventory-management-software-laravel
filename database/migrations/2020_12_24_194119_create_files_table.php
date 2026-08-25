@@ -19,9 +19,9 @@ class CreateFilesTable extends Migration
             $table->unsignedBigInteger('efile')->nullable();
             $table->string('physical')->nullable();
             $table->unsignedBigInteger('pnumber')->nullable();
-            $table->string('subject');
+            $table->string('subject')->nullable();
             $table->date('opened')->nullable();
-            $table->string('division');
+            $table->string('division')->nullable();
             $table->timestamps();
         });
     }

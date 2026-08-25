@@ -15,10 +15,10 @@ class CreateLocationsTable extends Migration
     {
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
-            $table->string('seat');
+            $table->string('seat')->nullable();
             $table->string('floor');
             $table->unsignedBigInteger('pin')->nullable();
-            $table->string('point');
+            $table->string('point')->nullable();
             $table->timestamps();
         });
     }

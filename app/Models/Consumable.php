@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Consumable extends Model
 {
@@ -67,14 +67,6 @@ class Consumable extends Model
     public function latestEntry(): HasOne
     {
         return $this->hasOne(Entry::class, 'consumable_id')->latestOfMany('id');
-    }
-
-    /**
-     * Backward-compatibility alias for legacy code calling latestentry.
-     */
-    public function latestentry(): HasOne
-    {
-        return $this->latestEntry();
     }
 
     /**

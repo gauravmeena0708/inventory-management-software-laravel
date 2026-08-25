@@ -117,7 +117,7 @@ class AuthorizationPolicyTest extends TestCase
         $user = new User();
         $options = $user->getActivitylogOptions();
 
-        $this->assertInstanceOf(\Spatie\Activitylog\LogOptions::class, $options);
+        $this->assertInstanceOf(\Spatie\Activitylog\Support\LogOptions::class, $options);
     }
 
     /**
