@@ -46,6 +46,10 @@ Use one synthetic `EPFO` root with branch and office nodes beneath it. Initial d
 - `VIGILANCE_ZVD`
 - `PDUNASS`
 - `ZTI`
+- `DIRECTORATE`
+- `DIVISION`
+- `BRANCH`
+- `SECTION`
 
 Use a materialized path for efficient descendant reads. All create and move operations go through an `OrganizationalHierarchyService`; do not manage subtree paths solely through model events.
 
@@ -348,10 +352,10 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Write tests for columns, foreign keys, indexes, enum casts, and unique code.
-- [ ] Create the nullable-path transitional schema.
-- [ ] Add parent/children relationships and non-auth-dependent query helpers.
-- [ ] Do not add automatic subtree rewriting to model events.
+- [x] Write tests for columns, foreign keys, indexes, enum casts, and unique code.
+- [x] Create the nullable-path transitional schema.
+- [x] Add parent/children relationships and non-auth-dependent query helpers.
+- [x] Do not add automatic subtree rewriting to model events.
 - [ ] Verify migration rollback in the test database.
 
 ### Task 2: Transactional organizational hierarchy service
@@ -364,13 +368,13 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Test root and child path creation.
-- [ ] Test descendant discovery with delimiter-safe prefixes.
-- [ ] Test moving a subtree and rewriting every descendant path.
-- [ ] Test rejection of self-parenting and descendant-parent cycles.
-- [ ] Test rollback when a subtree update fails.
-- [ ] Test inactive/deleted parent rules.
-- [ ] Implement create/move operations using database transactions and appropriate locks.
+- [x] Test root and child path creation.
+- [x] Test descendant discovery with delimiter-safe prefixes.
+- [x] Test moving a subtree and rewriting every descendant path.
+- [x] Test rejection of self-parenting and descendant-parent cycles.
+- [x] Test rollback when a subtree update fails.
+- [x] Test inactive/deleted parent rules.
+- [x] Implement create/move operations using database transactions and appropriate locks.
 
 ### Task 3: Organizational memberships and default context
 
@@ -384,12 +388,13 @@ Ordinary asset visibility must not automatically reveal exact GPS coordinates, r
 
 **Steps:**
 
-- [ ] Create the membership pivot with a composite unique constraint and validity dates.
-- [ ] Add `users.default_organizational_unit_id` safely.
-- [ ] Add membership relationships and active-membership helpers.
-- [ ] Validate that the default belongs to an active membership.
-- [ ] Keep the active context in session and reject unauthorized context values.
-- [ ] Test users with no membership, multiple memberships, expired membership, and overlapping ancestor/descendant membership.
+- [x] Create the membership pivot with a composite unique constraint and validity dates.
+- [x] Add `users.default_organizational_unit_id` safely.
+- [x] Add membership relationships and active-membership helpers.
+- [x] Validate that the default belongs to an active membership.
+- [x] Keep the active context in session and reject unauthorized context values.
+- [x] Test users with no membership, multiple memberships, expired membership, and overlapping ancestor/descendant membership.
+- [x] Test separate memberships for Head Office Main Establishment and IS Division under the same Head Office parent.
 
 ### Task 4: Sites and physical-space hierarchy
 

@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
@@ -12,7 +13,7 @@ use Spatie\Activitylog\Support\LogOptions;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, LogsActivity;
+    use HasFactory, LogsActivity, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -227,7 +228,7 @@ class User extends Authenticatable
     /**
      * The organizational units this user belongs to.
      */
-    public function organizationalUnits(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function organizationalUnits(): BelongsToMany
     {
         return $this->belongsToMany(OrganizationalUnit::class)
             ->withPivot(['read_scope', 'write_scope', 'valid_from', 'valid_until'])
@@ -237,24 +238,26 @@ class User extends Authenticatable
     /**
      * The active organizational units this user belongs to.
      */
-    public function activeOrganizationalUnits(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function activeOrganizationalUnits(): BelongsToMany
     {
         $now = now();
+
         return $this->organizationalUnits()
+            ->where('organizational_units.is_active', true)
             ->where(function ($query) use ($now) {
                 $query->whereNull('organizational_unit_user.valid_from')
-                      ->orWhere('organizational_unit_user.valid_from', '<=', $now);
+                    ->orWhere('organizational_unit_user.valid_from', '<=', $now);
             })
             ->where(function ($query) use ($now) {
                 $query->whereNull('organizational_unit_user.valid_until')
-                      ->orWhere('organizational_unit_user.valid_until', '>=', $now);
+                    ->orWhere('organizational_unit_user.valid_until', '>=', $now);
             });
     }
 
     /**
      * The default organizational unit for the user context.
      */
-    public function defaultOrganizationalUnit(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function defaultOrganizationalUnit(): BelongsTo
     {
         return $this->belongsTo(OrganizationalUnit::class, 'default_organizational_unit_id');
     }

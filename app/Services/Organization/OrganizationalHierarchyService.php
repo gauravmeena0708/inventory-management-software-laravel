@@ -2,6 +2,7 @@
 
 namespace App\Services\Organization;
 
+use App\Enums\OrganizationalUnitType;
 use App\Exceptions\InvalidHierarchyMove;
 use App\Models\OrganizationalUnit;
 use Illuminate\Support\Facades\DB;
@@ -14,21 +15,48 @@ class OrganizationalHierarchyService
     public function createUnit(array $data): OrganizationalUnit
     {
         return DB::transaction(function () use ($data) {
-            $unit = OrganizationalUnit::create($data);
-            $parentPath = '';
+            $unitType = $this->resolveUnitType($data['unit_type'] ?? null);
+            $parent = null;
 
-            if (!empty($unit->parent_id)) {
-                $parent = OrganizationalUnit::find($unit->parent_id);
-                if ($parent) {
-                    $parentPath = $parent->path;
+            if (! empty($data['parent_id'])) {
+                $parent = OrganizationalUnit::withTrashed()
+                    ->lockForUpdate()
+                    ->find($data['parent_id']);
+
+                if (! $parent || $parent->trashed()) {
+                    throw new InvalidHierarchyMove('Cannot create a unit under a missing or deleted parent.');
+                }
+
+                if (! $parent->is_active) {
+                    throw new InvalidHierarchyMove('Cannot create a unit under an inactive parent.');
+                }
+
+                if (! $parent->path) {
+                    throw new InvalidHierarchyMove('Cannot create a unit under a parent without a materialized path.');
                 }
             }
 
-            if (empty($parentPath)) {
-                $unit->path = '/' . $unit->id . '/';
-            } else {
-                $unit->path = rtrim($parentPath, '/') . '/' . $unit->id . '/';
+            $this->assertValidParentType($unitType, $parent);
+
+            if ($unitType === OrganizationalUnitType::ROOT) {
+                $rootExists = OrganizationalUnit::withTrashed()
+                    ->where('unit_type', OrganizationalUnitType::ROOT->value)
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($rootExists) {
+                    throw new InvalidHierarchyMove('Only one EPFO root organizational unit is allowed.');
+                }
             }
+
+            $data['unit_type'] = $unitType->value;
+            $data['depth'] = $parent ? $parent->depth + 1 : 0;
+            $data['path'] = null;
+
+            $unit = OrganizationalUnit::create($data);
+            $unit->path = $parent
+                ? rtrim($parent->path, '/').'/'.$unit->id.'/'
+                : '/'.$unit->id.'/';
             $unit->save();
 
             return $unit;
@@ -41,52 +69,108 @@ class OrganizationalHierarchyService
     public function moveUnit(OrganizationalUnit $unit, ?OrganizationalUnit $newParent): void
     {
         DB::transaction(function () use ($unit, $newParent) {
+            $lockedUnit = OrganizationalUnit::withTrashed()
+                ->lockForUpdate()
+                ->findOrFail($unit->getKey());
+
+            if ($lockedUnit->trashed()) {
+                throw new InvalidHierarchyMove('Cannot move a deleted organizational unit.');
+            }
+
+            $lockedParent = null;
+
             if ($newParent) {
-                if ($unit->id === $newParent->id) {
+                $lockedParent = OrganizationalUnit::withTrashed()
+                    ->lockForUpdate()
+                    ->findOrFail($newParent->getKey());
+
+                if ($lockedUnit->id === $lockedParent->id) {
                     throw new InvalidHierarchyMove('Cannot move unit to itself.');
                 }
 
-                if (!$newParent->is_active) {
+                if (! $lockedParent->is_active) {
                     throw new InvalidHierarchyMove('Cannot move unit to an inactive parent.');
                 }
 
-                if ($newParent->trashed()) {
+                if ($lockedParent->trashed()) {
                     throw new InvalidHierarchyMove('Cannot move unit to a deleted parent.');
                 }
 
-                // Check for cycle (if new parent is a descendant of the unit)
-                if (str_starts_with($newParent->path, $unit->path)) {
+                if (! $lockedParent->path || ! $lockedUnit->path) {
+                    throw new InvalidHierarchyMove('Cannot move a unit with an invalid materialized path.');
+                }
+
+                if (str_starts_with($lockedParent->path, $lockedUnit->path)) {
                     throw new InvalidHierarchyMove('Cannot move a unit to its own descendant.');
                 }
             }
 
-            $oldPath = $unit->path;
+            $unitType = $this->resolveUnitType($lockedUnit->unit_type);
+            $this->assertValidParentType($unitType, $lockedParent);
 
-            if ($newParent) {
-                $newPath = rtrim($newParent->path, '/') . '/' . $unit->id . '/';
-                $unit->parent_id = $newParent->id;
+            $oldPath = $lockedUnit->path;
+            $oldDepth = $lockedUnit->depth;
+            $newDepth = $lockedParent ? $lockedParent->depth + 1 : 0;
+
+            if ($lockedParent) {
+                $newPath = rtrim($lockedParent->path, '/').'/'.$lockedUnit->id.'/';
+                $lockedUnit->parent_id = $lockedParent->id;
             } else {
-                $newPath = '/' . $unit->id . '/';
-                $unit->parent_id = null;
+                $newPath = '/'.$lockedUnit->id.'/';
+                $lockedUnit->parent_id = null;
             }
 
-            $unit->path = $newPath;
-            $unit->save();
+            $lockedUnit->path = $newPath;
+            $lockedUnit->depth = $newDepth;
+            $lockedUnit->save();
 
-            // Update all descendants
-            // We use DB::table or eloquent and iterate to be DB-agnostic. 
-            // Depending on scale this could be a large query, but works correctly with chunks if needed.
-            // A direct SQL query could use string operations if we ensure MySQL/Postgres specifics.
             $descendants = OrganizationalUnit::withTrashed()
-                ->where('path', 'LIKE', $oldPath . '%')
-                ->where('id', '!=', $unit->id)
+                ->where('path', 'LIKE', $oldPath.'%')
+                ->where('id', '!=', $lockedUnit->id)
+                ->orderBy('id')
+                ->lockForUpdate()
                 ->get();
 
             $oldPathLength = strlen($oldPath);
+            $depthDelta = $newDepth - $oldDepth;
+
             foreach ($descendants as $descendant) {
-                $descendant->path = $newPath . substr($descendant->path, $oldPathLength);
+                $descendant->path = $newPath.substr($descendant->path, $oldPathLength);
+                $descendant->depth += $depthDelta;
                 $descendant->save();
             }
         });
+    }
+
+    private function resolveUnitType(OrganizationalUnitType|string|null $unitType): OrganizationalUnitType
+    {
+        if ($unitType instanceof OrganizationalUnitType) {
+            return $unitType;
+        }
+
+        if (! $unitType) {
+            throw new InvalidHierarchyMove('An organizational unit type is required.');
+        }
+
+        try {
+            return OrganizationalUnitType::from($unitType);
+        } catch (\ValueError) {
+            throw new InvalidHierarchyMove('Invalid organizational unit type.');
+        }
+    }
+
+    private function assertValidParentType(
+        OrganizationalUnitType $unitType,
+        ?OrganizationalUnit $parent
+    ): void {
+        $parentType = $parent ? $this->resolveUnitType($parent->unit_type) : null;
+
+        if (! $unitType->acceptsParent($parentType)) {
+            $parentLabel = $parentType?->value ?? 'no parent';
+
+            throw new InvalidHierarchyMove(
+                "Organizational unit type {$unitType->value} cannot be placed under {$parentLabel}."
+            );
+        }
     }
 }

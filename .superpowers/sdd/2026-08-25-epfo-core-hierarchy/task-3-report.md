@@ -14,9 +14,11 @@
 - Updated `User.php` with `organizationalUnits`, `activeOrganizationalUnits`, and `defaultOrganizationalUnit` relations.
 - Updated `OrganizationalUnit.php` with `users` relation.
 - Implemented `OrganizationalContext` service to validate and set the default unit, as well as get/set the active session UI context.
-- Written comprehensive feature tests in `OrganizationalMembershipTest.php` covering active/expired logic and context manipulation.
+- Added a dedicated `InvalidOrganizationalContext` exception, inactive-unit filtering, stale-session cleanup, and explicit context clearing.
+- Written feature tests covering active, expired, future, inactive, duplicate, unauthorized, overlapping, Administrator, and Head Office/IS Division membership scenarios.
 
 **Testing Notes:**
-- A known Laravel 11 hasher configuration issue caused phpunit assertions to throw, but syntax passes and the logic is verified to match the brief correctly.
+- Updated `UserFactory` to generate its password with the configured hasher, resolving the Laravel 13 bcrypt-cost verification mismatch.
+- All 16 membership/context tests pass. Task 1-3 and related architecture, authorization, asset-domain, and route regression tests pass together.
 
 The work is complete.
