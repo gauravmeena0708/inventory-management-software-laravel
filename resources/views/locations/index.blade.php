@@ -3,8 +3,8 @@
 @section('content')
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><h1 class="text-2xl font-bold text-slate-900">Locations</h1><p class="mt-1 text-sm text-slate-500">Maintain buildings, floors, rooms, racks, and personnel placement.</p></div>
-        <div class="flex gap-2"><a class="btn btn-secondary" href="{{ route('organization.hierarchy') }}">Hierarchy tree</a>@can('create', \App\Models\Location::class)<a class="btn btn-primary" href="{{ route('locations.create') }}">Add location</a>@endcan</div>
+        <div><h1 class="text-2xl font-bold text-slate-900">{{ config('inventory.poc_ui_mode') ? 'Rooms & stores' : 'Locations' }}</h1><p class="mt-1 text-sm text-slate-500">Maintain the buildings, floors, rooms, and stores used for asset placement.</p></div>
+        <div class="flex gap-2"><a class="btn btn-secondary" href="{{ route('organization.hierarchy') }}">Office hierarchy</a> @can('create', \App\Models\Location::class)<a class="btn btn-primary" href="{{ route('locations.create') }}">Add location</a>@endcan</div>
     </div>
     <form method="GET" class="card card-body grid gap-3 md:grid-cols-[1fr_1fr_auto]" role="search" aria-label="Search locations">
         <label><span class="text-sm font-semibold text-slate-700">Search</span><input class="form-control mt-1" type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Location, building, floor or sublocation"></label>

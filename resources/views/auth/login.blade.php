@@ -10,7 +10,7 @@
             </svg>
         </div>
         <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">NDC Inventory Management</h1>
-        <p class="text-xs text-slate-500 mt-1.5">Sign in to access your hardware lifecycle, stock ledger, and contract obligations.</p>
+        <p class="text-xs text-slate-500 mt-1.5">{{ config('inventory.poc_ui_mode') ? 'Sign in to manage assets, people, locations, and stock.' : 'Sign in to access your hardware lifecycle, stock ledger, and contract obligations.' }}</p>
     </div>
 
     <!-- Login Card -->
@@ -94,7 +94,7 @@
                     type="submit" 
                     class="w-full py-3 px-4 text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
                 >
-                    Sign In to Portal
+                    {{ config('inventory.poc_ui_mode') ? 'Sign in' : 'Sign In to Portal' }}
                 </button>
             </div>
         </form>

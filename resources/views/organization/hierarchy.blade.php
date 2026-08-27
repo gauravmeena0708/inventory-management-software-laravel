@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@if (config('inventory.poc_ui_mode'))
+    @include('organization.hierarchy-poc')
+@else
 <div class="space-y-6">
     <header>
         <p class="text-sm font-semibold text-indigo-700">{{ $activeContext?->name ?? 'All authorized memberships' }}</p>
@@ -103,4 +106,5 @@
         </div>
     </section>
 </div>
+@endif
 @endsection

@@ -60,7 +60,7 @@
                     <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                     </svg>
-                    Restock (PO)
+                    {{ config('inventory.poc_ui_mode') ? 'Receive Stock' : 'Restock (PO)' }}
                 </button>
             @endif
             @if (auth()->user()?->canManageInventory())
@@ -106,7 +106,7 @@
     <!-- Stock Ledger Transaction History -->
     <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Immutable Stock Transaction Ledger</h2>
+            <h2 class="text-sm font-bold text-slate-900 uppercase tracking-wider">{{ config('inventory.poc_ui_mode') ? 'Stock Transaction History' : 'Immutable Stock Transaction Ledger' }}</h2>
             <span class="text-xs text-slate-500">{{ $consumable->entries->count() }} recent transactions</span>
         </div>
         <div class="overflow-x-auto">
@@ -179,7 +179,7 @@
 
                     <div class="p-6 space-y-4">
                         <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <h3 class="text-base font-bold text-slate-900">Record Stock Transaction</h3>
+                            <h3 class="text-base font-bold text-slate-900" x-text="entryType === 'issue' ? 'Issue Stock' : 'Receive Stock'"></h3>
                             <button type="button" @click="entryModal = false" class="text-slate-400 hover:text-slate-600">&times;</button>
                         </div>
 
@@ -187,6 +187,7 @@
                             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Transaction Type <span class="text-rose-500">*</span></label>
                             <select name="type" x-model="entryType" required class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                 @foreach(\App\Enums\StockEntryType::cases() as $entryTypeCase)
+                                    @continue(config('inventory.poc_ui_mode') && ! in_array($entryTypeCase, [\App\Enums\StockEntryType::PURCHASE, \App\Enums\StockEntryType::ISSUE], true))
                                     <option value="{{ $entryTypeCase->value }}">{{ $entryTypeCase->label() }}</option>
                                 @endforeach
                             </select>
@@ -216,7 +217,7 @@
 
                     <div class="px-6 py-4 bg-slate-50 flex items-center justify-end space-x-3">
                         <button type="button" @click="entryModal = false" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-200">Cancel</button>
-                        <button type="submit" class="px-4 py-2 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm">Post Entry to Ledger</button>
+                        <button type="submit" class="px-4 py-2 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm" x-text="entryType === 'issue' ? 'Issue Stock' : 'Receive Stock'"></button>
                     </div>
                 </form>
             </div>

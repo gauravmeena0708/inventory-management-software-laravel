@@ -27,16 +27,36 @@ class EpfoNdcHierarchySeeder extends Seeder
             ]);
         }
 
+        $headOffice = OrganizationalUnit::where('code', 'HO-EPFO-DEMO')->first();
+        if (! $headOffice) {
+            $headOffice = $hierarchyService->createUnit([
+                'code' => 'HO-EPFO-DEMO',
+                'name' => 'EPFO Head Office',
+                'unit_type' => OrganizationalUnitType::HEAD_OFFICE->value,
+                'parent_id' => $root->id,
+                'is_active' => true,
+                'metadata' => [
+                    'demo' => true,
+                    'city' => 'New Delhi',
+                    'source' => 'pf-contacts-inspired',
+                ],
+            ]);
+        }
+
         $ndc = OrganizationalUnit::where('code', 'NDC')->first();
         if (! $ndc) {
             $ndc = $hierarchyService->createUnit([
                 'code' => 'NDC',
-                'name' => 'National Data Center',
+                'name' => 'National Data Centre',
                 'unit_type' => OrganizationalUnitType::NDC->value,
-                'parent_id' => $root->id,
+                'parent_id' => $headOffice->id,
                 'is_active' => true,
             ]);
+        } elseif ($ndc->parent_id !== $headOffice->id) {
+            $hierarchyService->moveUnit($ndc, $headOffice);
         }
+
+        $ndc->forceFill(['name' => 'National Data Centre'])->save();
 
         $ndcHq = Site::firstOrCreate(
             ['code' => 'NDC_HQ'],

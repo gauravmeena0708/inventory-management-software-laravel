@@ -5,8 +5,8 @@
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Consumables &amp; Supplies</h1>
-            <p class="text-sm text-slate-500 mt-1">Track physical peripherals, cables, stationery, and stock reorder thresholds.</p>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ config('inventory.poc_ui_mode') ? 'Consumables & Stock' : 'Consumables & Supplies' }}</h1>
+            <p class="text-sm text-slate-500 mt-1">{{ config('inventory.poc_ui_mode') ? 'View current quantities, receive stock, and issue items to people.' : 'Track physical peripherals, cables, stationery, and stock reorder thresholds.' }}</p>
         </div>
         <div class="flex items-center space-x-3">
             <a 
@@ -16,7 +16,7 @@
                 <svg class="w-4 h-4 mr-1.5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                 </svg>
-                View Stock Ledger
+                View Transaction History
             </a>
             @if (auth()->user()?->canManageInventory())
             <a 
@@ -26,7 +26,7 @@
                 <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
-                New Consumable
+                Add Consumable
             </a>
             @endif
         </div>
@@ -138,7 +138,7 @@
 
                             <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-medium space-x-2">
                                 <a href="{{ route('consumables.show', $item) }}" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors">
-                                    Manage / Ledger
+                                    View / Update Stock
                                 </a>
                                 @if (auth()->user()?->canManageInventory())
                                 <a href="{{ route('consumables.edit', $item) }}" class="inline-flex items-center px-2.5 py-1.5 rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">

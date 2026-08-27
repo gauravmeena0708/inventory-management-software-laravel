@@ -97,11 +97,12 @@ class NdcBackfillTest extends TestCase
         $this->seed(EpfoNdcHierarchySeeder::class);
 
         $this->assertSame(1, OrganizationalUnit::where('code', 'EPFO')->count());
+        $this->assertSame(1, OrganizationalUnit::where('code', 'HO-EPFO-DEMO')->count());
         $this->assertSame(1, OrganizationalUnit::where('code', 'NDC')->count());
         $this->assertSame(1, Site::where('code', 'NDC_HQ')->count());
 
         $ndc = OrganizationalUnit::where('code', 'NDC')->firstOrFail();
-        $this->assertSame('EPFO', $ndc->parent->code);
+        $this->assertSame('HO-EPFO-DEMO', $ndc->parent->code);
         $this->assertSame(1, $ndc->sites()->where('sites.code', 'NDC_HQ')->count());
     }
 

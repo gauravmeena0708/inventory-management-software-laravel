@@ -20,8 +20,18 @@ class OrganizationalHierarchyController extends Controller
         $this->authorize('viewAny', Location::class);
 
         $unitIds = $navigation->contextUnitIds($request->user());
-        $units = OrganizationalUnit::query()
-            ->whereIn('id', $unitIds->all())
+        $unitQuery = OrganizationalUnit::query()->whereIn('id', $unitIds->all());
+
+        if ($request->filled('search')) {
+            $term = $request->string('search')->trim()->toString();
+            $unitQuery->where(function (Builder $query) use ($term): void {
+                $query->where('name', 'like', "%{$term}%")
+                    ->orWhere('code', 'like', "%{$term}%")
+                    ->orWhere('unit_type', 'like', "%{$term}%");
+            });
+        }
+
+        $units = $unitQuery
             ->with('parent')
             ->orderBy('path')
             ->orderBy('name')

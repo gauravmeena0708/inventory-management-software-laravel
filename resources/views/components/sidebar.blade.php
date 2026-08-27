@@ -1,3 +1,6 @@
+@if (config('inventory.poc_ui_mode'))
+    @include('components.sidebar-poc')
+@else
 <aside 
     id="sidebar"
     class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-auto shrink-0 shadow-xl border-r border-slate-800"
@@ -272,3 +275,4 @@
         </div>
     </div>
 </aside>
+@endif

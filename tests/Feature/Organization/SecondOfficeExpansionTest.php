@@ -34,13 +34,24 @@ class SecondOfficeExpansionTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $secondOfficeManager;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         Storage::fake('private');
+        User::factory()->admin()->create(['email' => 'admin@inventory.local']);
         $this->seed(EpfoNdcHierarchySeeder::class);
         $this->seed(EpfoExpansionDemoSeeder::class);
+
+        $this->secondOfficeManager = $this->managerFor(
+            $this->secondUnit(),
+            'second.office.manager@example.test'
+        );
+        $this->secondOfficeManager->forceFill([
+            'default_organizational_unit_id' => $this->secondUnit()->id,
+        ])->save();
     }
 
     public function test_second_office_is_loaded_from_configuration_through_public_services_and_is_idempotent(): void
@@ -236,7 +247,7 @@ class SecondOfficeExpansionTest extends TestCase
 
     private function secondManager(): User
     {
-        return User::where('email', 'north-zone-demo@example.test')->firstOrFail();
+        return $this->secondOfficeManager;
     }
 
     private function secondAsset(): Asset

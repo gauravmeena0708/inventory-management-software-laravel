@@ -1,19 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mx-auto px-4 py-6">
-    <h1 class="text-2xl font-bold mb-6">Create Official</h1>
-    <form action="{{ route('officials.store') }}" method="POST" class="bg-white p-6 rounded shadow max-w-2xl">
+<div class="mx-auto max-w-3xl space-y-6">
+    <header><h1 class="text-2xl font-bold text-slate-900">Add person</h1><p class="mt-1 text-sm text-slate-500">Add someone who can receive assets or consumable stock.</p></header>
+    <form action="{{ route('officials.store') }}" method="POST" class="card card-body space-y-6">
         @csrf
-        <div class="mb-4">
-            <label class="block text-gray-700 font-bold mb-2">Name</label>
-            <input type="text" name="name" class="border rounded w-full py-2 px-3" required>
-        </div>
-        <div class="mb-4">
-            <label class="block text-gray-700 font-bold mb-2">Designation</label>
-            <input type="text" name="designation" class="border rounded w-full py-2 px-3">
-        </div>
-        <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded">Save Official</button>
+        @include('officials._form')
+        <div class="flex gap-3"><button type="submit" class="btn btn-primary">Save person</button><a class="btn btn-secondary" href="{{ route('officials.index') }}">Cancel</a></div>
     </form>
 </div>
 @endsection

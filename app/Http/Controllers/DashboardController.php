@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Agreement;
 use App\Models\Asset;
+use App\Models\AssetAssignment;
 use App\Models\Consumable;
+use App\Models\Entry;
 use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,6 +67,28 @@ class DashboardController extends Controller
 
         if ($request->wantsJson()) {
             return response()->json($kpis);
+        }
+
+        if (config('inventory.poc_ui_mode')) {
+            $kpis['recent_assignments'] = AssetAssignment::query()
+                ->whereHas('asset', fn ($query) => $query->visibleTo($user))
+                ->with([
+                    'asset',
+                    'official' => fn ($query) => $query->visibleTo($user),
+                ])
+                ->latest('assigned_at')
+                ->take(6)
+                ->get();
+
+            $kpis['recent_stock_entries'] = Entry::query()
+                ->with([
+                    'consumable',
+                    'recipient' => fn ($query) => $query->visibleTo($user),
+                    'recorder',
+                ])
+                ->latest('id')
+                ->take(6)
+                ->get();
         }
 
         if (view()->exists('dashboard')) {

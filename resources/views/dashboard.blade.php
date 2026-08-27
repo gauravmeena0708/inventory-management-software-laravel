@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@if (config('inventory.poc_ui_mode'))
+    @include('dashboard-poc')
+@else
 <div class="space-y-6">
     <!-- Top Header -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -286,4 +289,5 @@
         </div>
     </div>
 </div>
+@endif
 @endsection

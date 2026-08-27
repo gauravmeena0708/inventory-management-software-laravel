@@ -4,11 +4,11 @@
 <div class="space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900">Officials</h1>
-            <p class="mt-1 text-sm text-slate-500">Manage personnel, departments, locations, and assigned assets.</p>
+            <h1 class="text-2xl font-bold text-slate-900">{{ config('inventory.poc_ui_mode') ? 'People' : 'Officials' }}</h1>
+            <p class="mt-1 text-sm text-slate-500">Manage people, departments, locations, and assigned assets.</p>
         </div>
         @can('create', \App\Models\Official::class)
-            <a class="btn btn-primary" href="{{ route('officials.create') }}">Add official</a>
+            <a class="btn btn-primary" href="{{ route('officials.create') }}">Add person</a>
         @endcan
     </div>
 
@@ -41,7 +41,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-slate-500">No officials found.</td></tr>
+                    <tr><td colspan="6" class="text-center text-slate-500">No people found.</td></tr>
                 @endforelse
                 </tbody>
             </table>

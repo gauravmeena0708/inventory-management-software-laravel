@@ -6,7 +6,6 @@ use App\Enums\AssetStatus;
 use App\Enums\AssetType;
 use App\Enums\LocationType;
 use App\Enums\OrganizationalUnitType;
-use App\Enums\UserRole;
 use App\Models\Asset;
 use App\Models\Consumable;
 use App\Models\Location;
@@ -15,7 +14,6 @@ use App\Models\Site;
 use App\Models\StockBalance;
 use App\Models\User;
 use App\Services\Assets\CreateAssetAction;
-use App\Services\Organization\OrganizationalContext;
 use App\Services\Organization\OrganizationalHierarchyService;
 use App\Services\Spatial\PhysicalHierarchyService;
 use App\Services\Stock\LocationStockService;
@@ -26,8 +24,10 @@ use RuntimeException;
  * Development/test proof that another office can be loaded from data alone.
  *
  * This seeder deliberately depends only on the EPFO root contract and the
- * application's public hierarchy, asset, and stock services. It is not called
- * by DatabaseSeeder and must never be used as production reference data.
+ * application's public hierarchy, asset, and stock services. It uses the
+ * standard seeded administrator as its audit actor instead of provisioning a
+ * dedicated login. It is not called by DatabaseSeeder and must never be used
+ * as production reference data.
  */
 class EpfoExpansionDemoSeeder extends Seeder
 {
@@ -74,12 +74,6 @@ class EpfoExpansionDemoSeeder extends Seeder
                 'location_type' => LocationType::STORE,
             ],
         ],
-        'user' => [
-            'name' => 'North Zone Demo Manager',
-            'email' => 'north-zone-demo@example.test',
-            'password' => 'demo-password-change-me',
-            'role' => UserRole::INVENTORY_MANAGER,
-        ],
         'asset' => [
             'asset_tag' => 'NORTH-DEMO-ASSET-001',
             'name' => 'North Zone Demonstration Laptop',
@@ -101,7 +95,6 @@ class EpfoExpansionDemoSeeder extends Seeder
     public function run(
         OrganizationalHierarchyService $organizations,
         PhysicalHierarchyService $physicalHierarchy,
-        OrganizationalContext $context,
         CreateAssetAction $createAsset,
         LocationStockService $stock
     ): void {
@@ -158,20 +151,10 @@ class EpfoExpansionDemoSeeder extends Seeder
             $locations[$key] = $location;
         }
 
-        $userData = self::DEMO['user'];
-        $manager = User::query()->updateOrCreate(
-            ['email' => $userData['email']],
-            $userData
-        );
-        $manager->organizationalUnits()->syncWithoutDetaching([
-            $unit->id => [
-                'read_scope' => 'local',
-                'write_scope' => 'local',
-                'valid_from' => now(),
-                'valid_until' => null,
-            ],
-        ]);
-        $context->setDefaultUnit($manager, $unit->id);
+        $actor = User::query()->where('email', 'admin@inventory.local')->first();
+        if (! $actor?->isAdmin()) {
+            throw new RuntimeException('Seed the standard admin@inventory.local account before running the expansion demo seeder.');
+        }
 
         if (! Asset::query()->where('asset_tag', self::DEMO['asset']['asset_tag'])->exists()) {
             $createAsset->execute([
@@ -180,7 +163,7 @@ class EpfoExpansionDemoSeeder extends Seeder
                 'status' => self::DEMO['asset']['status']->value,
                 'location_id' => $locations['store']->id,
                 'organizational_unit_id' => $unit->id,
-            ], $manager);
+            ], $actor);
         }
 
         $stockData = self::DEMO['stock'];
@@ -202,7 +185,7 @@ class EpfoExpansionDemoSeeder extends Seeder
                 $consumable,
                 $locations['store'],
                 $stockData['quantity'],
-                $manager,
+                $actor,
                 'north-demo-opening-stock',
                 'Expansion proof opening balance.'
             );

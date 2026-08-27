@@ -13,8 +13,11 @@ enum OrganizationalUnitType: string
     case SPECIAL_STATE_OFFICE = 'SPECIAL_STATE_OFFICE';
     case VIGILANCE_HQ = 'VIGILANCE_HQ';
     case VIGILANCE_ZVD = 'VIGILANCE_ZVD';
+    case INTERNAL_AUDIT_WING = 'INTERNAL_AUDIT_WING';
     case PDUNASS = 'PDUNASS';
     case ZTI = 'ZTI';
+    case HOLIDAY_HOME = 'HOLIDAY_HOME';
+    case ALTERNATE_DATA_CENTRE = 'ALTERNATE_DATA_CENTRE';
     case DIRECTORATE = 'DIRECTORATE';
     case DIVISION = 'DIVISION';
     case BRANCH = 'BRANCH';
@@ -46,11 +49,14 @@ enum OrganizationalUnitType: string
             self::ZONAL_OFFICE => [self::ROOT, self::HEAD_OFFICE],
             self::REGIONAL_OFFICE => [self::ZONAL_OFFICE, self::SPECIAL_STATE_OFFICE],
             self::DISTRICT_OFFICE => [self::REGIONAL_OFFICE, self::SPECIAL_STATE_OFFICE],
-            self::SPECIAL_STATE_OFFICE => [self::ROOT, self::HEAD_OFFICE, self::ZONAL_OFFICE],
+            self::SPECIAL_STATE_OFFICE => [self::ROOT, self::HEAD_OFFICE, self::ZONAL_OFFICE, self::REGIONAL_OFFICE],
             self::VIGILANCE_HQ => [self::ROOT, self::HEAD_OFFICE],
             self::VIGILANCE_ZVD => [self::VIGILANCE_HQ],
+            self::INTERNAL_AUDIT_WING => [self::HEAD_OFFICE],
             self::PDUNASS => [self::ROOT, self::HEAD_OFFICE],
             self::ZTI => [self::PDUNASS],
+            self::HOLIDAY_HOME => [self::HEAD_OFFICE],
+            self::ALTERNATE_DATA_CENTRE => [self::NDC],
             self::DIRECTORATE => [
                 self::HEAD_OFFICE,
                 self::NDC,
@@ -58,6 +64,7 @@ enum OrganizationalUnitType: string
                 self::REGIONAL_OFFICE,
                 self::SPECIAL_STATE_OFFICE,
                 self::VIGILANCE_HQ,
+                self::INTERNAL_AUDIT_WING,
                 self::PDUNASS,
             ],
             self::DIVISION => [
@@ -69,8 +76,10 @@ enum OrganizationalUnitType: string
                 self::SPECIAL_STATE_OFFICE,
                 self::VIGILANCE_HQ,
                 self::VIGILANCE_ZVD,
+                self::INTERNAL_AUDIT_WING,
                 self::PDUNASS,
                 self::ZTI,
+                self::ALTERNATE_DATA_CENTRE,
                 self::DIRECTORATE,
             ],
             self::BRANCH => [
@@ -82,8 +91,10 @@ enum OrganizationalUnitType: string
                 self::SPECIAL_STATE_OFFICE,
                 self::VIGILANCE_HQ,
                 self::VIGILANCE_ZVD,
+                self::INTERNAL_AUDIT_WING,
                 self::PDUNASS,
                 self::ZTI,
+                self::ALTERNATE_DATA_CENTRE,
                 self::DIRECTORATE,
                 self::DIVISION,
             ],
@@ -94,7 +105,9 @@ enum OrganizationalUnitType: string
                 self::DISTRICT_OFFICE,
                 self::SPECIAL_STATE_OFFICE,
                 self::VIGILANCE_ZVD,
+                self::INTERNAL_AUDIT_WING,
                 self::ZTI,
+                self::ALTERNATE_DATA_CENTRE,
                 self::DIRECTORATE,
                 self::DIVISION,
                 self::BRANCH,

@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Enums\LocationType;
 use App\Enums\OrganizationalUnitType;
-use App\Enums\UserRole;
 use App\Models\Location;
 use App\Models\OrganizationalUnit;
 use App\Models\Site;
@@ -61,16 +60,23 @@ class EpfoHierarchyDemoSeeder extends Seeder
         ['code' => 'DO-GAYA', 'name' => 'Gaya District Office', 'type' => OrganizationalUnitType::DISTRICT_OFFICE, 'parent' => 'RO-PATNA', 'city' => 'Gaya', 'site' => true],
         ['code' => 'DO-MUZAFFARPUR', 'name' => 'Muzaffarpur District Office', 'type' => OrganizationalUnitType::DISTRICT_OFFICE, 'parent' => 'RO-PATNA', 'city' => 'Muzaffarpur', 'site' => true],
 
-        ['code' => 'SSO-NORTHEAST', 'name' => 'North East Special State Office', 'type' => OrganizationalUnitType::SPECIAL_STATE_OFFICE, 'parent' => 'HO-EPFO-DEMO', 'city' => 'Guwahati', 'site' => true],
+        ['code' => 'SSO-NORTHEAST', 'name' => 'North East Special State Office', 'type' => OrganizationalUnitType::SPECIAL_STATE_OFFICE, 'parent' => 'ZO-EAST', 'city' => 'Guwahati', 'site' => true],
+        ['code' => 'SSO-GANGTOK', 'name' => 'Gangtok Special State Office', 'type' => OrganizationalUnitType::SPECIAL_STATE_OFFICE, 'parent' => 'ZO-EAST', 'city' => 'Gangtok', 'site' => true],
         ['code' => 'RO-GUWAHATI', 'name' => 'Guwahati Regional Office', 'type' => OrganizationalUnitType::REGIONAL_OFFICE, 'parent' => 'SSO-NORTHEAST', 'city' => 'Guwahati', 'site' => true],
         ['code' => 'DO-SHILLONG', 'name' => 'Shillong District Office', 'type' => OrganizationalUnitType::DISTRICT_OFFICE, 'parent' => 'RO-GUWAHATI', 'city' => 'Shillong', 'site' => true],
         ['code' => 'DO-AGARTALA', 'name' => 'Agartala District Office', 'type' => OrganizationalUnitType::DISTRICT_OFFICE, 'parent' => 'RO-GUWAHATI', 'city' => 'Agartala', 'site' => true],
 
         ['code' => 'VIG-HQ-DEMO', 'name' => 'Central Vigilance Headquarters', 'type' => OrganizationalUnitType::VIGILANCE_HQ, 'parent' => 'HO-EPFO-DEMO'],
         ['code' => 'VIG-ZVD-NORTH', 'name' => 'North Zone Vigilance Directorate', 'type' => OrganizationalUnitType::VIGILANCE_ZVD, 'parent' => 'VIG-HQ-DEMO'],
-        ['code' => 'PDUNASS-DEMO', 'name' => 'Pandit Deendayal Upadhyaya National Academy', 'type' => OrganizationalUnitType::PDUNASS, 'parent' => 'HO-EPFO-DEMO'],
-        ['code' => 'ZTI-NORTH-DEMO', 'name' => 'North Zone Training Institute', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO'],
-        ['code' => 'ZTI-SOUTH-DEMO', 'name' => 'South Zone Training Institute', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO'],
+        ['code' => 'VIG-ZVD-SOUTH', 'name' => 'South Zone Vigilance Directorate', 'type' => OrganizationalUnitType::VIGILANCE_ZVD, 'parent' => 'VIG-HQ-DEMO'],
+        ['code' => 'VIG-ZVD-EAST', 'name' => 'East Zone Vigilance Directorate', 'type' => OrganizationalUnitType::VIGILANCE_ZVD, 'parent' => 'VIG-HQ-DEMO'],
+        ['code' => 'VIG-ZVD-WEST', 'name' => 'West Zone Vigilance Directorate', 'type' => OrganizationalUnitType::VIGILANCE_ZVD, 'parent' => 'VIG-HQ-DEMO'],
+        ['code' => 'IAW-DEMO', 'name' => 'Internal Audit Wing', 'type' => OrganizationalUnitType::INTERNAL_AUDIT_WING, 'parent' => 'HO-EPFO-DEMO', 'city' => 'New Delhi'],
+        ['code' => 'PDUNASS-DEMO', 'name' => 'NATRSS / PDUNASS', 'type' => OrganizationalUnitType::PDUNASS, 'parent' => 'HO-EPFO-DEMO', 'city' => 'New Delhi'],
+        ['code' => 'ZTI-NORTH-DEMO', 'name' => 'Zonal Training Institute - North', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO', 'city' => 'Faridabad', 'site' => true],
+        ['code' => 'ZTI-SOUTH-DEMO', 'name' => 'Zonal Training Institute - South', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO', 'city' => 'Chennai', 'site' => true],
+        ['code' => 'ZTI-EAST-DEMO', 'name' => 'Zonal Training Institute - East', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO', 'city' => 'Kolkata', 'site' => true],
+        ['code' => 'ZTI-WEST-DEMO', 'name' => 'Zonal Training Institute - West', 'type' => OrganizationalUnitType::ZTI, 'parent' => 'PDUNASS-DEMO', 'city' => 'Ujjain', 'site' => true],
         ['code' => 'DIR-IS-DEMO', 'name' => 'Information Services Directorate', 'type' => OrganizationalUnitType::DIRECTORATE, 'parent' => 'HO-EPFO-DEMO'],
         ['code' => 'DIV-INFRA-DEMO', 'name' => 'Infrastructure Division', 'type' => OrganizationalUnitType::DIVISION, 'parent' => 'DIR-IS-DEMO'],
         ['code' => 'SEC-ASSET-DEMO', 'name' => 'Asset Management Section', 'type' => OrganizationalUnitType::SECTION, 'parent' => 'DIV-INFRA-DEMO'],
@@ -104,12 +110,26 @@ class EpfoHierarchyDemoSeeder extends Seeder
                     'metadata' => [
                         'demo' => true,
                         'city' => $configuredUnit['city'] ?? null,
-                        'source' => 'epfo-hierarchy-demo',
+                        'source' => 'pf-contacts-inspired',
                     ],
                 ]);
-            } elseif ($unit->parent_id !== $parent->id || $unit->unit_type !== $configuredUnit['type']) {
+            } elseif ($unit->unit_type !== $configuredUnit['type']) {
                 throw new RuntimeException("Demo unit {$configuredUnit['code']} conflicts with an existing hierarchy record.");
             }
+
+            if ($unit->parent_id !== $parent->id) {
+                $organizations->moveUnit($unit, $parent);
+            }
+
+            $unit->forceFill([
+                'name' => $configuredUnit['name'],
+                'metadata' => [
+                    ...($unit->metadata ?? []),
+                    'demo' => true,
+                    'city' => $configuredUnit['city'] ?? null,
+                    'source' => 'pf-contacts-inspired',
+                ],
+            ])->save();
 
             $units[$configuredUnit['code']] = $unit;
 
@@ -132,24 +152,6 @@ class EpfoHierarchyDemoSeeder extends Seeder
             $context->setDefaultUnit($admin, $root->id);
         }
 
-        $regionalOffice = $units['RO-DELHI'];
-        $regionalOfficer = User::query()->updateOrCreate(
-            ['email' => 'delhi.regional.officer@example.test'],
-            [
-                'name' => 'Delhi Regional Officer',
-                'password' => 'regional-demo-password',
-                'role' => UserRole::INVENTORY_MANAGER,
-            ]
-        );
-        $regionalOfficer->organizationalUnits()->syncWithoutDetaching([
-            $regionalOffice->id => [
-                'read_scope' => 'descendants',
-                'write_scope' => 'local',
-                'valid_from' => now(),
-                'valid_until' => null,
-            ],
-        ]);
-        $context->setDefaultUnit($regionalOfficer, $regionalOffice->id);
     }
 
     /**

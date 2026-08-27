@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeveloperController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\FileRecordController;
+use App\Http\Controllers\InventoryReportController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\LocationStockController;
 use App\Http\Controllers\ManufacturerController;
@@ -78,6 +79,7 @@ Route::middleware('auth')->group(function () {
     // Dashboard
     Route::get('/', DashboardController::class)->name('home');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/reports/inventory', InventoryReportController::class)->name('reports.inventory');
 
     // Assets & Assignments
     Route::get('assets/export', [AssetController::class, 'export'])->name('assets.export');

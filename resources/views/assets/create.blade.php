@@ -135,6 +135,12 @@
             </div>
         </div>
 
+        @if (config('inventory.poc_ui_mode'))
+        <details class="border-t border-slate-100 bg-slate-50/50">
+            <summary class="cursor-pointer px-6 py-4 text-sm font-bold text-slate-700 hover:text-indigo-700">Advanced details <span class="ml-1 font-normal text-slate-500">network, warranty, and procurement</span></summary>
+            <div class="divide-y divide-slate-100 border-t border-slate-100 bg-white">
+        @endif
+
         <!-- Technical & Network Specifications -->
         <div class="p-6 space-y-6">
             <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
@@ -207,6 +213,11 @@
                 </div>
             </div>
         </div>
+
+        @if (config('inventory.poc_ui_mode'))
+            </div>
+        </details>
+        @endif
 
         <!-- Form Actions -->
         <div class="px-6 py-4 bg-slate-50/70 flex items-center justify-end space-x-3 rounded-b-2xl">
