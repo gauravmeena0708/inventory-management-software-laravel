@@ -5,7 +5,7 @@
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ config('inventory.poc_ui_mode') ? 'Stock Transaction History' : 'Immutable Stock Ledger' }}</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Immutable Stock Ledger</h1>
             <p class="text-sm text-slate-500 mt-1">{{ config('inventory.poc_ui_mode') ? 'Review all received and issued stock with the resulting balance.' : 'Audit log of all inbound purchase orders, outbound issues, and physical stock count adjustments.' }}</p>
         </div>
         <div class="flex items-center space-x-3">

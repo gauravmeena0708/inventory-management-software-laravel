@@ -26,6 +26,12 @@ class FrontendViewRenderTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['inventory.poc_ui_mode' => false]);
+    }
+
     /**
      * Test guest login view renders clean form and components.
      */

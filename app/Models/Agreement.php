@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -92,6 +93,16 @@ class Agreement extends Model
     public function organizationalUnit(): BelongsTo
     {
         return $this->belongsTo(OrganizationalUnit::class);
+    }
+
+    /**
+     * Get assets covered under this agreement.
+     */
+    public function assets(): BelongsToMany
+    {
+        return $this->belongsToMany(Asset::class, 'agreement_asset')
+            ->withPivot(['id', 'coverage_type', 'coverage_start', 'coverage_end', 'sla_reference', 'remarks'])
+            ->withTimestamps();
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder

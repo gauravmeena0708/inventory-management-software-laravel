@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -31,6 +32,7 @@ class Asset extends Model
         'asset_tag',
         'name',
         'asset_type',
+        'asset_category_id',
         'manufacturer_id',
         'manufacturer_name_legacy',
         'location_id',
@@ -95,6 +97,14 @@ class Asset extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->logOnlyDirty();
+    }
+
+    /**
+     * Get the category of the asset.
+     */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(AssetCategory::class, 'asset_category_id');
     }
 
     /**
@@ -183,11 +193,131 @@ class Asset extends Model
     }
 
     /**
+     * Get the unified lifecycle event stream for this asset.
+     */
+    public function lifecycleEvents(): HasMany
+    {
+        return $this->hasMany(AssetLifecycleEvent::class, 'asset_id')->orderBy('occurred_at', 'desc')->orderBy('id', 'desc');
+    }
+
+    /**
+     * Get all agreements covering this asset.
+     */
+    public function agreements(): BelongsToMany
+    {
+        return $this->belongsToMany(Agreement::class, 'agreement_asset')
+            ->withPivot(['id', 'coverage_type', 'coverage_start', 'coverage_end', 'sla_reference', 'remarks'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get all maintenance tickets for this asset.
+     */
+    public function maintenanceTickets(): HasMany
+    {
+        return $this->hasMany(MaintenanceTicket::class, 'asset_id')->latest('reported_at');
+    }
+
+    /**
+     * Get all transfers for this asset.
+     */
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(AssetTransfer::class, 'asset_id')->latest('requested_at');
+    }
+
+    /**
+     * Get all disposal records for this asset.
+     */
+    public function disposals(): HasMany
+    {
+        return $this->hasMany(AssetDisposal::class, 'asset_id')->latest('created_at');
+    }
+
+    /**
+     * Get current active disposal record.
+     */
+    public function currentDisposal(): HasOne
+    {
+        return $this->hasOne(AssetDisposal::class, 'asset_id')->latestOfMany('created_at');
+    }
+
+    /**
+     * Get verification history items for this asset.
+     */
+    public function verificationItems(): HasMany
+    {
+        return $this->hasMany(InventoryVerificationItem::class, 'asset_id')->latest('verified_at');
+    }
+
+    /**
+     * Get acquisitions providing provenance for this asset.
+     */
+    public function acquisitions(): BelongsToMany
+    {
+        return $this->belongsToMany(Acquisition::class, 'acquisition_assets')
+            ->withPivot(['id', 'unit_cost', 'quantity_component'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Child relationships where this asset is the parent.
+     */
+    public function childRelationships(): HasMany
+    {
+        return $this->hasMany(AssetRelationship::class, 'parent_asset_id');
+    }
+
+    /**
+     * Parent relationships where this asset is the child.
+     */
+    public function parentRelationships(): HasMany
+    {
+        return $this->hasMany(AssetRelationship::class, 'child_asset_id');
+    }
+
+    /**
+     * Child assets connected to or installed in this asset.
+     */
+    public function childAssets(): BelongsToMany
+    {
+        return $this->belongsToMany(Asset::class, 'asset_relationships', 'parent_asset_id', 'child_asset_id')
+            ->withPivot(['id', 'relationship_type', 'remarks'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Parent assets that contain or power this asset.
+     */
+    public function parentAssets(): BelongsToMany
+    {
+        return $this->belongsToMany(Asset::class, 'asset_relationships', 'child_asset_id', 'parent_asset_id')
+            ->withPivot(['id', 'relationship_type', 'remarks'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Alerts generated for this asset.
+     */
+    public function alerts(): HasMany
+    {
+        return $this->hasMany(InventoryAlert::class, 'asset_id');
+    }
+
+    /**
      * Scope assets to organizational units visible to an explicit user.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
         return app(OrganizationalVisibility::class)->apply($query, $user);
+    }
+
+    /**
+     * Scope a query to only include assets of a given category.
+     */
+    public function scopeCategory(Builder $query, int|string $categoryId): Builder
+    {
+        return $query->where('asset_category_id', $categoryId);
     }
 
     /**

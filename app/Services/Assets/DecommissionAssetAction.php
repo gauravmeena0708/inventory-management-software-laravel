@@ -3,6 +3,7 @@
 namespace App\Services\Assets;
 
 use App\Enums\AssetStatus;
+use App\Enums\LifecycleEventType;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\User;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class DecommissionAssetAction
 {
+    public function __construct(
+        private readonly ?RecordLifecycleEventAction $recordLifecycleEvent = null
+    ) {}
+
     /**
      * Decommission an asset, closing active assignments and updating status.
      */
@@ -32,6 +37,8 @@ class DecommissionAssetAction
             $timestamp = $decommissionedAt
                 ? ($decommissionedAt instanceof DateTimeInterface ? $decommissionedAt : now()->parse($decommissionedAt))
                 : now();
+
+            $previousStatus = $lockedAsset->status;
 
             // Close any open assignment
             $openAssignments = AssetAssignment::where('asset_id', $lockedAsset->id)
@@ -56,6 +63,20 @@ class DecommissionAssetAction
                 'status' => AssetStatus::DECOMMISSIONED,
                 'remarks' => $updatedRemarks,
             ]);
+
+            // Record DECOMMISSIONED lifecycle event
+            $lifecycleAction = $this->recordLifecycleEvent ?? app(RecordLifecycleEventAction::class);
+            $lifecycleAction->execute(
+                $lockedAsset,
+                LifecycleEventType::DECOMMISSIONED,
+                $actor,
+                [
+                    'occurred_at' => $timestamp,
+                    'from_status' => $previousStatus,
+                    'to_status' => AssetStatus::DECOMMISSIONED,
+                    'remarks' => $reason ?: 'Asset decommissioned from active service.',
+                ]
+            );
 
             return $lockedAsset->fresh();
         });

@@ -4,6 +4,8 @@ namespace App\Exports;
 
 use App\Enums\AssetStatus;
 use App\Enums\AssetType;
+use App\Exports\Sheets\AssetSummaryExportSheet;
+use App\Exports\Sheets\AssetTypeExportSheet;
 use App\Models\Asset;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -11,8 +13,9 @@ use Maatwebsite\Excel\Concerns\Exportable;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
-class AssetsExport implements FromQuery, WithHeadings, WithMapping
+class AssetsExport implements WithMultipleSheets, FromQuery, WithHeadings, WithMapping
 {
     use Exportable;
 
@@ -26,7 +29,40 @@ class AssetsExport implements FromQuery, WithHeadings, WithMapping
     }
 
     /**
-     * Prepare the query for export.
+     * Define the sheets for the multi-tab workbook:
+     * 1. Executive Summary (Counts & Valuation Pivot)
+     * 2. Desktops
+     * 3. Laptops
+     * 4. Servers
+     * 5. Switches & Networking
+     * 6. Storage Systems
+     * 7. Other Equipment
+     */
+    public function sheets(): array
+    {
+        $typeTitles = [
+            AssetType::DESKTOP->value => 'Desktops',
+            AssetType::LAPTOP->value => 'Laptops',
+            AssetType::SERVER->value => 'Servers',
+            AssetType::SWITCH->value => 'Switches & Network',
+            AssetType::STORAGE->value => 'Storage Systems',
+            AssetType::OTHER->value => 'Other Equipment',
+        ];
+
+        $sheets = [
+            new AssetSummaryExportSheet($this->query, $this->user),
+        ];
+
+        foreach (AssetType::cases() as $type) {
+            $title = $typeTitles[$type->value] ?? $type->label();
+            $sheets[] = new AssetTypeExportSheet($title, $type, $this->query, $this->user);
+        }
+
+        return $sheets;
+    }
+
+    /**
+     * Prepare the query for direct single-sheet fallback or unit test.
      */
     public function query(): Builder
     {

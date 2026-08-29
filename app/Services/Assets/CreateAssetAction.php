@@ -3,6 +3,7 @@
 namespace App\Services\Assets;
 
 use App\Enums\AssetStatus;
+use App\Enums\LifecycleEventType;
 use App\Models\Asset;
 use App\Models\Location;
 use App\Models\OrganizationalUnit;
@@ -15,7 +16,8 @@ class CreateAssetAction
 {
     public function __construct(
         private readonly AssetPlacementService $placementService,
-        private readonly OrganizationalContext $organizationalContext
+        private readonly OrganizationalContext $organizationalContext,
+        private readonly RecordLifecycleEventAction $recordLifecycleEvent
     ) {}
 
     /**
@@ -51,6 +53,21 @@ class CreateAssetAction
             }
 
             $asset = Asset::create($data);
+
+            // Record initial registration lifecycle event
+            $this->recordLifecycleEvent->execute(
+                $asset,
+                LifecycleEventType::REGISTERED,
+                $actor,
+                [
+                    'to_status' => $asset->status,
+                    'to_organizational_unit_id' => $asset->organizational_unit_id,
+                    'reference_type' => 'Asset',
+                    'reference_id' => $asset->id,
+                    'reference_number' => $asset->asset_tag,
+                    'remarks' => 'Asset registered into inventory.',
+                ]
+            );
 
             if ($location) {
                 $this->placementService->placeAsset(

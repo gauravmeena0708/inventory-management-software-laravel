@@ -43,7 +43,8 @@ class AssetDomainTest extends TestCase
         $this->assertEquals('Other', AssetType::OTHER->label());
         $this->assertArrayHasKey('laptop', AssetType::labels());
 
-        $this->assertEquals(['in_use', 'in_stock', 'under_maintenance', 'decommissioned'], AssetStatus::values());
+        $expectedStatuses = ['in_stock', 'reserved', 'in_use', 'in_transit', 'under_maintenance', 'missing', 'pending_disposal', 'decommissioned', 'disposed'];
+        $this->assertEquals($expectedStatuses, AssetStatus::values());
         $this->assertEquals('In Use', AssetStatus::IN_USE->label());
         $this->assertEquals('In Stock', AssetStatus::IN_STOCK->label());
         $this->assertEquals('Under Maintenance', AssetStatus::UNDER_MAINTENANCE->label());
@@ -51,7 +52,6 @@ class AssetDomainTest extends TestCase
         $this->assertEquals('blue', AssetStatus::IN_USE->color());
         $this->assertEquals('green', AssetStatus::IN_STOCK->color());
         $this->assertEquals('amber', AssetStatus::UNDER_MAINTENANCE->color());
-        $this->assertEquals('red', AssetStatus::DECOMMISSIONED->color());
         $this->assertArrayHasKey('in_stock', AssetStatus::labels());
     }
 

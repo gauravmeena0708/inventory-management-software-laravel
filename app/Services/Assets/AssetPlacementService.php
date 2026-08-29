@@ -2,6 +2,7 @@
 
 namespace App\Services\Assets;
 
+use App\Enums\LifecycleEventType;
 use App\Models\Asset;
 use App\Models\AssetPlacement;
 use App\Models\Location;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\Validator;
 
 class AssetPlacementService
 {
+    public function __construct(
+        private readonly ?RecordLifecycleEventAction $recordLifecycleEvent = null
+    ) {}
+
     /**
      * Places an asset at a specific location, closing the previous placement if any.
      */
@@ -41,11 +46,15 @@ class AssetPlacementService
             ])->validate();
 
             $now = now();
+            $fromLocationId = $lockedAsset->location_id;
+
             $openPlacements = AssetPlacement::query()
                 ->where('asset_id', $lockedAsset->id)
                 ->whereNull('removed_at')
                 ->lockForUpdate()
                 ->get();
+
+            $isRelocation = $openPlacements->isNotEmpty() || $fromLocationId !== null;
 
             foreach ($openPlacements as $openPlacement) {
                 $openPlacement->update([
@@ -57,7 +66,7 @@ class AssetPlacementService
             $lockedAsset->location_id = $lockedLocation->id;
             $lockedAsset->save();
 
-            return $lockedAsset->placements()->create([
+            $placement = $lockedAsset->placements()->create([
                 'location_id' => $lockedLocation->id,
                 'placed_by' => $placedBy->id,
                 'placed_at' => $now,
@@ -70,6 +79,30 @@ class AssetPlacementService
                 'rack_unit_height' => $validated['rack_unit_height'] ?? null,
                 'remarks' => $validated['remarks'] ?? null,
             ]);
+
+            // Emit PLACED or RELOCATED lifecycle event
+            $lifecycleAction = $this->recordLifecycleEvent ?? app(RecordLifecycleEventAction::class);
+            $lifecycleAction->execute(
+                $lockedAsset,
+                $isRelocation ? LifecycleEventType::RELOCATED : LifecycleEventType::PLACED,
+                $placedBy,
+                [
+                    'occurred_at' => $now,
+                    'from_location_id' => $fromLocationId,
+                    'to_location_id' => $lockedLocation->id,
+                    'reference_type' => 'AssetPlacement',
+                    'reference_id' => $placement->id,
+                    'remarks' => $validated['remarks'] ?? ($isRelocation ? 'Asset relocated.' : 'Asset placed at location.'),
+                    'metadata' => [
+                        'location_name' => $lockedLocation->name,
+                        'position_x' => $validated['position_x'] ?? null,
+                        'position_y' => $validated['position_y'] ?? null,
+                        'rack_start_unit' => $validated['rack_start_unit'] ?? null,
+                    ],
+                ]
+            );
+
+            return $placement;
         }, 3);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Assets;
 
 use App\Enums\AssetStatus;
+use App\Enums\LifecycleEventType;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\Official;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\DB;
 
 class AssignAssetAction
 {
+    public function __construct(
+        private readonly ?RecordLifecycleEventAction $recordLifecycleEvent = null
+    ) {}
+
     /**
      * Assign an asset to an official, closing any previous open assignment.
      */
@@ -39,6 +44,8 @@ class AssignAssetAction
             $timestamp = $assignedAt
                 ? ($assignedAt instanceof DateTimeInterface ? $assignedAt : now()->parse($assignedAt))
                 : now();
+
+            $previousStatus = $lockedAsset->status;
 
             // Close any existing open assignment
             $openAssignments = AssetAssignment::where('asset_id', $lockedAsset->id)
@@ -72,6 +79,27 @@ class AssignAssetAction
                 'assigned_official_id' => $official->id,
                 'status' => AssetStatus::IN_USE,
             ]);
+
+            // Record ASSIGNED lifecycle event
+            $lifecycleAction = $this->recordLifecycleEvent ?? app(RecordLifecycleEventAction::class);
+            $lifecycleAction->execute(
+                $lockedAsset,
+                LifecycleEventType::ASSIGNED,
+                $actor,
+                [
+                    'occurred_at' => $timestamp,
+                    'from_status' => $previousStatus,
+                    'to_status' => AssetStatus::IN_USE,
+                    'reference_type' => 'AssetAssignment',
+                    'reference_id' => $assignment->id,
+                    'remarks' => $remarks ?: "Assigned to official: {$official->name}",
+                    'metadata' => [
+                        'official_id' => $official->id,
+                        'official_name' => $official->name,
+                        'condition_out' => $conditionOut,
+                    ],
+                ]
+            );
 
             return $assignment;
         });

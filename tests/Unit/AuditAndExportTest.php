@@ -336,4 +336,41 @@ class AuditAndExportTest extends TestCase
             return $storedExport === $export;
         });
     }
+
+    /**
+     * Test AssetsExport produces multi-sheet workbook with Executive Summary and asset type sheets.
+     */
+    public function test_assets_export_multi_sheet_structure_and_summary(): void
+    {
+        $user = User::factory()->admin()->create();
+
+        // Create sample assets across different types and statuses
+        Asset::factory()->create([
+            'asset_type' => AssetType::LAPTOP,
+            'status' => AssetStatus::IN_USE,
+            'purchase_cost' => 85000.00,
+        ]);
+        Asset::factory()->create([
+            'asset_type' => AssetType::SERVER,
+            'status' => AssetStatus::IN_STOCK,
+            'purchase_cost' => 320000.00,
+        ]);
+
+        $export = new AssetsExport(Asset::query(), $user);
+        $sheets = $export->sheets();
+
+        // 1 Executive Summary + 6 AssetType sheets
+        $this->assertCount(7, $sheets);
+        $this->assertInstanceOf(\App\Exports\Sheets\AssetSummaryExportSheet::class, $sheets[0]);
+        $this->assertSame('Executive Summary', $sheets[0]->title());
+
+        $summaryCollection = $sheets[0]->collection();
+        $this->assertNotEmpty($summaryCollection);
+
+        // Verify grand total row is present at the end
+        $grandTotalRow = $summaryCollection->last();
+        $this->assertSame('GRAND TOTAL', $grandTotalRow[0]);
+        $this->assertEquals(2, $grandTotalRow[7]); // Total assets
+        $this->assertEquals('405000.00', $grandTotalRow[8]); // Total valuation
+    }
 }

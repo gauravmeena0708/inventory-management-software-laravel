@@ -3,6 +3,7 @@
 namespace App\Services\Assets;
 
 use App\Enums\AssetStatus;
+use App\Enums\LifecycleEventType;
 use App\Models\Asset;
 use App\Models\AssetAssignment;
 use App\Models\User;
@@ -11,6 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 class ReturnAssetAction
 {
+    public function __construct(
+        private readonly ?RecordLifecycleEventAction $recordLifecycleEvent = null
+    ) {}
+
     /**
      * Record the return of an asset into stock and close its active assignment.
      */
@@ -34,6 +39,8 @@ class ReturnAssetAction
             $timestamp = $returnedAt
                 ? ($returnedAt instanceof DateTimeInterface ? $returnedAt : now()->parse($returnedAt))
                 : now();
+
+            $previousStatus = $lockedAsset->status;
 
             /** @var AssetAssignment|null $openAssignment */
             $openAssignment = AssetAssignment::where('asset_id', $lockedAsset->id)
@@ -59,6 +66,25 @@ class ReturnAssetAction
                 'assigned_official_id' => null,
                 'status' => AssetStatus::IN_STOCK,
             ]);
+
+            // Record RETURNED lifecycle event
+            $lifecycleAction = $this->recordLifecycleEvent ?? app(RecordLifecycleEventAction::class);
+            $lifecycleAction->execute(
+                $lockedAsset,
+                LifecycleEventType::RETURNED,
+                $actor,
+                [
+                    'occurred_at' => $timestamp,
+                    'from_status' => $previousStatus,
+                    'to_status' => AssetStatus::IN_STOCK,
+                    'reference_type' => $openAssignment ? 'AssetAssignment' : null,
+                    'reference_id' => $openAssignment?->id,
+                    'remarks' => $remarks ?: 'Asset returned to stock.',
+                    'metadata' => [
+                        'condition_in' => $conditionIn,
+                    ],
+                ]
+            );
 
             return $openAssignment;
         });

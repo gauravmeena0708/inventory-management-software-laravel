@@ -5,7 +5,7 @@
     <!-- Header Section -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ config('inventory.poc_ui_mode') ? 'Consumables & Stock' : 'Consumables & Supplies' }}</h1>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Consumables &amp; Supplies</h1>
             <p class="text-sm text-slate-500 mt-1">{{ config('inventory.poc_ui_mode') ? 'View current quantities, receive stock, and issue items to people.' : 'Track physical peripherals, cables, stationery, and stock reorder thresholds.' }}</p>
         </div>
         <div class="flex items-center space-x-3">
