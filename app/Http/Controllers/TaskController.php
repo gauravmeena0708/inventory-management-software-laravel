@@ -2,103 +2,187 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
+use App\Models\FileRecord;
 use App\Models\Task;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class TaskController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
-    
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Display a listing of tasks.
      */
-
-    public function index()
+    public function index(Request $request): View|JsonResponse
     {
-        $tasks = Task::get();
-        return view('tasks.index',['tasks'=>$tasks]);
-    }
+        $this->authorize('viewAny', Task::class);
 
-    public function pending()
-    {
-        $tasks = Task::where('status', '!=' , 'completed')->get();
-        return view('tasks.index',['tasks'=>$tasks]);
-    }
+        $user = $request->user();
+        $query = Task::query()
+            ->visibleTo($user)
+            ->with([
+                'assignedUser',
+                'file' => fn ($fileQuery) => $fileQuery->visibleTo($user),
+            ]);
 
-    public function completed()
-    {
-        $tasks = Task::where('status', 'completed')->get();
-        return view('tasks.index',['tasks'=>$tasks]);
-    }
+        $status = $request->input('status');
+        if ($status === 'pending') {
+            $query->pending();
+        } elseif ($status === 'completed') {
+            $query->completed();
+        } elseif ($request->filled('status')) {
+            $query->where('status', $status);
+        }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        //
-    }
+        if ($request->filled('priority')) {
+            $query->where('priority', $request->input('priority'));
+        }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+        if ($request->filled('assigned_to')) {
+            $query->where('assigned_to', $request->input('assigned_to'));
+        }
 
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Task  $task
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Task $task)
-    {
-        //
+        if ($request->filled('search')) {
+            $term = $request->input('search');
+            $query->where(function ($q) use ($term) {
+                $q->where('title', 'like', "%{$term}%")
+                    ->orWhere('description', 'like', "%{$term}%");
+            });
+        }
+
+        $tasks = $query->latest('id')->paginate(20)->withQueryString();
+
+        if ($request->wantsJson()) {
+            return response()->json($tasks);
+        }
+
+        return view('tasks.index', [
+            'tasks' => $tasks,
+            'users' => User::orderBy('name')->get(),
+            'filters' => $request->only(['status', 'priority', 'assigned_to', 'search']),
+        ]);
     }
 
     /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Task  $task
-     * @return \Illuminate\Http\Response
+     * Show the form for creating a new task.
      */
-    public function edit(Task $task)
+    public function create(Request $request): View
     {
-        //
+        $this->authorize('create', Task::class);
+
+        return view('tasks.create', [
+            'users' => User::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
+        ]);
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Task  $task
-     * @return \Illuminate\Http\Response
+     * Store a newly created task in storage.
      */
-    public function update(Request $request, Task $task)
+    public function store(StoreTaskRequest $request): RedirectResponse|JsonResponse
     {
-        //
+        $task = Task::create($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Task created successfully.',
+                'task' => $task->fresh(['assignedUser', 'file']),
+            ], 201);
+        }
+
+        return redirect()->route('tasks.show', $task)
+            ->with('success', 'Task created successfully.');
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Task  $task
-     * @return \Illuminate\Http\Response
+     * Display the specified task.
      */
-    public function destroy(Task $task)
+    public function show(Request $request, Task $task): View|JsonResponse
     {
-        //
+        $this->authorize('view', $task);
+
+        $task->load([
+            'assignedUser',
+            'file' => fn ($fileQuery) => $fileQuery->visibleTo($request->user()),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json($task);
+        }
+
+        return view('tasks.show', ['task' => $task]);
+    }
+
+    /**
+     * Show the form for editing the specified task.
+     */
+    public function edit(Request $request, Task $task): View
+    {
+        $this->authorize('update', $task);
+
+        return view('tasks.edit', [
+            'task' => $task,
+            'users' => User::orderBy('name')->get(),
+            'files' => FileRecord::visibleTo($request->user())->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Update the specified task in storage.
+     */
+    public function update(UpdateTaskRequest $request, Task $task): RedirectResponse|JsonResponse
+    {
+        $task->update($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Task updated successfully.',
+                'task' => $task->fresh(['assignedUser', 'file']),
+            ]);
+        }
+
+        return redirect()->route('tasks.show', $task)
+            ->with('success', 'Task updated successfully.');
+    }
+
+    /**
+     * Remove the specified task from storage.
+     */
+    public function destroy(Request $request, Task $task): RedirectResponse|JsonResponse
+    {
+        $this->authorize('delete', $task);
+
+        $task->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Task deleted successfully.']);
+        }
+
+        return redirect()->route('tasks.index')
+            ->with('success', 'Task deleted successfully.');
+    }
+
+    /**
+     * Filter helper for pending tasks.
+     */
+    public function pending(Request $request): View|JsonResponse
+    {
+        $request->merge(['status' => 'pending']);
+
+        return $this->index($request);
+    }
+
+    /**
+     * Filter helper for completed tasks.
+     */
+    public function completed(Request $request): View|JsonResponse
+    {
+        $request->merge(['status' => 'completed']);
+
+        return $this->index($request);
     }
 }

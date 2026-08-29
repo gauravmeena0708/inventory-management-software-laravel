@@ -15,10 +15,10 @@ class CreateTasksTable extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
-            $table->unsignedInteger('priority')->nullable();
+            $table->string('name')->nullable();
+            $table->string('priority', 32)->default('normal');
             $table->unsignedInteger('file_id')->nullable();
-            $table->string('status');
+            $table->string('status', 32)->default('pending');
             $table->string('remark')->nullable();
             $table->timestamps();
         });

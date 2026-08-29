@@ -1,39 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="col">
-<div class="card">
-    <div class="card-header">Tasks</div>
-    <div class="card-body">
-        
-        <table class="table table-stripped table-condensed table-bordered datatable">
-            <thead>
-                <th>id</th>
-                <th>Name</th>
-                <th>Status</th>
-            </thead>
-            <tbody>
-                @forelse ($tasks as $task)
-                    <tr>
-                        <td><a href="#">{{$task->id}}</a></td>
-                        <td><a href="#">{{$task->name}}</a></td>
-                        <td class="@if($task->status == 'completed') bg-success @endif"><a href="#">{{$task->status}}</a></td>
-                    </tr>
-                @empty
-                    No items found.
-                @endforelse
-            </tbody>
-        </table>
-        
-    </div>
-    <div class="card-footer"><a class="btn btn-primary" href="#">Create New</a></div>
+<div class="space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 class="text-2xl font-bold text-slate-900">Tasks</h1><p class="mt-1 text-sm text-slate-500">Track operational work, ownership, priority, and due dates.</p></div>@can('create', \App\Models\Task::class)<a class="btn btn-primary" href="{{ route('tasks.create') }}">Add task</a>@endcan</div>
+    <form method="GET" class="card card-body grid gap-4 sm:grid-cols-[1fr_11rem_11rem_14rem_auto]"><input class="form-control" type="search" name="search" value="{{ $filters['search'] ?? '' }}" placeholder="Search title or description"><select class="form-control" name="status"><option value="">All statuses</option><option value="pending" @selected(($filters['status'] ?? '') === 'pending')>Pending</option><option value="completed" @selected(($filters['status'] ?? '') === 'completed')>Completed</option></select><select class="form-control" name="priority"><option value="">All priorities</option>@foreach(['low','normal','high','urgent'] as $priority)<option value="{{ $priority }}" @selected(($filters['priority'] ?? '') === $priority)>{{ ucfirst($priority) }}</option>@endforeach</select><select class="form-control" name="assigned_to"><option value="">All assignees</option>@foreach($users as $user)<option value="{{ $user->id }}" @selected(($filters['assigned_to'] ?? '') == $user->id)>{{ $user->name }}</option>@endforeach</select><button class="btn btn-secondary" type="submit">Filter</button></form>
+    <div class="card"><div class="card-body"><table class="table table-striped">
+        <thead><tr><th>Task</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Due date</th><th>File</th><th>Actions</th></tr></thead>
+        <tbody>@forelse($tasks as $task)<tr><td><a href="{{ route('tasks.show', $task) }}">{{ $task->title }}</a></td><td>{{ $task->assignedUser?->name ?? 'Unassigned' }}</td><td>{{ ucfirst($task->priority ?? 'normal') }}</td><td><span class="badge {{ $task->status === 'completed' ? 'bg-success' : 'badge-warning' }}">{{ ucfirst($task->status ?? 'pending') }}</span></td><td>{{ $task->due_date?->format('d M Y') ?? '—' }}</td><td>{{ $task->file?->name ?? '—' }}</td><td class="whitespace-nowrap"><a href="{{ route('tasks.show', $task) }}">View</a>@can('update', $task)<span class="text-slate-300"> · </span><a href="{{ route('tasks.edit', $task) }}">Edit</a>@endcan</td></tr>@empty<tr><td colspan="7" class="text-center text-slate-500">No tasks found.</td></tr>@endforelse</tbody>
+    </table></div>@if($tasks->hasPages())<div class="card-footer">{{ $tasks->links() }}</div>@endif</div>
 </div>
-@endsection
-
-@section('jsscript')
-<script>
-    $(document).ready( function () {
-        $('.datatable').DataTable();
-    } );
-</script>
 @endsection

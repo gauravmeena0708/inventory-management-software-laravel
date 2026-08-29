@@ -17,10 +17,10 @@ class CreateAgreementsTable extends Migration
             $table->id();
             $table->string('name');
             $table->string('agency');
-            $table->foreignId('file_id')->references('id')->on('files')->onDelete('cascade')->onUpdate('cascade');         
+            $table->foreignId('file_id')->nullable()->references('id')->on('files')->nullOnDelete()->cascadeOnUpdate();
             $table->string('type');
             $table->date('expiry')->nullable();
-            $table->unsignedBigInteger('annual_cost')->nullable();
+            $table->decimal('annual_cost', 15, 2)->nullable();
             $table->unsignedInteger('frequency')->nullable();
             $table->date('paid_till')->nullable();
             $table->string('remarks')->nullable();

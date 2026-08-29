@@ -1,5 +1,6 @@
 /vendor/
 node_modules/
+/.runtime/
 npm-debug.log
 yarn-error.log
 
@@ -10,6 +11,8 @@ app/storage/
 # Laravel 5 & Lumen specific
 public/storage
 public/hot
+/public/build/
+/storage/framework/laravel-excel/*.xlsx
 
 # Laravel 5 & Lumen specific with changed public path
 public_html/storage

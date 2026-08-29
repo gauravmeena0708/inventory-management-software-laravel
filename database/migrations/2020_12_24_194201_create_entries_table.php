@@ -16,10 +16,10 @@ class CreateEntriesTable extends Migration
         Schema::create('entries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('consumable_id')->references('id')->on('consumables')->onDelete('cascade')->onUpdate('cascade');         
-            $table->unsignedInteger('type');
-            $table->unsignedInteger('amount');
-            $table->unsignedInteger('stock');
-            $table->foreignId('issuer_id')->references('id')->on('officials')->onDelete('cascade')->onUpdate('cascade');         
+            $table->string('type');
+            $table->unsignedInteger('amount')->nullable();
+            $table->unsignedInteger('stock')->nullable();
+            $table->foreignId('issuer_id')->nullable()->references('id')->on('officials')->nullOnDelete()->cascadeOnUpdate();
             $table->timestamps();
         });
     }

@@ -1,30 +1,4 @@
 @extends('layouts.app')
-
 @section('content')
-<div class="card">
-    <div class="card-header">File</div>
-    <div class="card-body">
-        <table class="table table-stripped table-condensed table-bordered">
-            <thead>
-                <th>Field</th>
-                <th>Value</th>
-            </thead>
-            <tbody>
-            <tr><td>id</td><td>{{$file->id}}</td></tr>
-            <tr><td>Name</td><td>{{$file->name}}</td></tr>
-            <tr><td>E-file</td><td>{{$file->efile}}</td></tr>
-            <tr><td>Physical</td><td>{{$file->physical}}</td></tr>
-            <tr><td>pnumber</td><td>{{$file->pnumber}}</tr>           
-            <tr><td>Subject</td><td>{{$file->Subject}}</td></tr>
-            <tr><td>Division</td><td>{{$file->division}}</td></tr>
-            <tr><td>Opened</td><td>{{$file->Opened}}</td></tr>
-            </tbody>
-        </table>
-    </div>
-    <div class="card-footer">
-        <a class="btn btn-primary" href="{{route('files.show',$file->id-1)}}">Previous</a>
-        <a class="btn btn-primary" href="{{route('files.index')}}">Show All</a>
-        <a class="btn btn-primary" href="{{route('files.show',$file->id+1)}}">Next</a>
-    </div>
-</div>
+<div class="space-y-6"><div class="flex items-center justify-between"><div><h1 class="text-2xl font-bold text-slate-900">{{ $file->name }}</h1><p class="mt-1 text-sm text-slate-500">File registry record #{{ $file->id }}</p></div><a class="btn btn-primary" href="{{ route('files.edit', $file) }}">Edit file</a></div><div class="card"><div class="card-body grid gap-6 sm:grid-cols-2 lg:grid-cols-3">@foreach(['E-file number' => $file->efile_number, 'Physical name' => $file->physical_name, 'Physical number' => $file->physical_number, 'Division' => $file->division, 'Opened' => $file->opened_at?->format('d M Y'), 'Attachments' => $file->attachments->count()] as $label => $value)<div><p class="text-xs font-bold uppercase tracking-wider text-slate-400">{{ $label }}</p><p class="mt-1 font-semibold text-slate-900">{{ $value ?: '—' }}</p></div>@endforeach @if($file->subject)<div class="sm:col-span-2 lg:col-span-3"><p class="text-xs font-bold uppercase tracking-wider text-slate-400">Subject</p><p class="mt-1 text-slate-700">{{ $file->subject }}</p></div>@endif</div></div></div>
 @endsection

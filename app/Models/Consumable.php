@@ -2,32 +2,118 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class Consumable extends Model
 {
-    use HasFactory;
-    use LogsActivity;
-    protected static $logFillable = true;
+    use HasFactory, LogsActivity, SoftDeletes;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'name',
-        'max_quantity',
+        'sku',
+        'unit',
+        'in_stock',
         'min_quantity',
-        'in_stock'
+        'max_quantity',
     ];
 
-    
-
-    public function latestentry() {
-        $item = $this->hasMany(Entry::class)->latest();
-        return $item;
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'in_stock' => 'integer',
+            'min_quantity' => 'integer',
+            'max_quantity' => 'integer',
+        ];
     }
 
-    public function entries() {
-        $item = $this->hasMany(Entry::class);
-        return $item;
+    /**
+     * Get the options for activity logging.
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable()
+            ->logOnlyDirty();
+    }
+
+    /**
+     * Get all stock ledger entries for this consumable.
+     */
+    public function entries(): HasMany
+    {
+        return $this->hasMany(Entry::class, 'consumable_id');
+    }
+
+    /**
+     * Get the latest stock ledger entry for this consumable.
+     */
+    public function latestEntry(): HasOne
+    {
+        return $this->hasOne(Entry::class, 'consumable_id')->latestOfMany('id');
+    }
+
+    /**
+     * Location-specific balances. The legacy in_stock column is a synchronized aggregate only.
+     */
+    public function stockBalances(): HasMany
+    {
+        return $this->hasMany(StockBalance::class);
+    }
+
+    /**
+     * Immutable location-specific stock transactions.
+     */
+    public function stockTransactions(): HasMany
+    {
+        return $this->hasMany(StockTransaction::class);
+    }
+
+    /**
+     * Check if the consumable is at or below its configured minimum stock threshold.
+     */
+    public function isLowStock(): bool
+    {
+        return $this->min_quantity !== null && $this->in_stock <= $this->min_quantity;
+    }
+
+    /**
+     * Scope a query to only include consumables that have low stock.
+     */
+    public function scopeLowStock(Builder $query): Builder
+    {
+        return $query->whereNotNull('min_quantity')
+            ->whereColumn('in_stock', '<=', 'min_quantity');
+    }
+
+    /**
+     * Scope a query to search consumables by name or SKU.
+     */
+    public function scopeSearch(Builder $query, ?string $term): Builder
+    {
+        if (blank($term)) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($term) {
+            $q->where('name', 'like', "%{$term}%")
+                ->orWhere('sku', 'like', "%{$term}%");
+        });
     }
 }

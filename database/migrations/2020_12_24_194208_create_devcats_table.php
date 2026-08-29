@@ -16,11 +16,11 @@ class CreateDevcatsTable extends Migration
         Schema::create('devcats', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('salary');
-            $table->string('exp');
-            $table->unsignedInteger('dev');
-            $table->unsignedInteger('collab');
-            $table->string('qualification');
+            $table->string('salary')->nullable();
+            $table->string('exp')->nullable();
+            $table->unsignedInteger('dev')->nullable();
+            $table->unsignedInteger('collab')->nullable();
+            $table->string('qualification')->nullable();
             $table->timestamps();
         });
     }

@@ -1,62 +1,68 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="card">
-    <div class="card-header">New Consumable</div>
-    <div class="card-body">
+<div class="max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Add Consumable Supply</h1>
+            <p class="text-sm text-slate-500 mt-1">Register a stock supply item with min/max replenishment limits.</p>
+        </div>
+        <a href="{{ route('consumables.index') }}" class="inline-flex items-center px-3.5 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 shadow-xs transition-colors">
+            &larr; Back to Consumables
+        </a>
+    </div>
 
-        <form action="{{route('consumables.store')}}" method="POST">
+    <form action="{{ route('consumables.store') }}" method="POST" class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-6 space-y-5">
         @csrf
-        @if ($errors->any())
-            <div class="alert alert-danger">
-                <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-                </ul>
-            </div>
-        @endif
 
-            <div class="form-group">
-                <label for="">Name</label>
-                <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" value="{{ old('name') }}" placeholder="Enter name">
-                @error('name')<span style="color:red"> {{ $errors->first('name')}} </span> @enderror
+        <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Consumable Name <span class="text-rose-500">*</span></label>
+            <input type="text" name="name" value="{{ old('name') }}" required placeholder="e.g., Cat6 Patch Cable (2m) or RJ45 Connectors" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            @error('name')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">SKU / Item Code</label>
+                <input type="text" name="sku" value="{{ old('sku') }}" placeholder="e.g., CAB-CAT6-02M" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono">
+                @error('sku')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
-            <div class="form-group">
-                <label for="in_stock">In Stock</label>
-                <input type="number" class="form-control @error('in_stock') is-invalid @enderror" name="in_stock" value="{{ old('in_stock') }}" placeholder="Enter stock value ">
-                @error('in_stock')<span style="color:red"> {{ $errors->first('in_stock')}} </span> @enderror
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Unit of Measure</label>
+                <input type="text" name="unit" value="{{ old('unit', 'piece') }}" placeholder="e.g., piece, box, roll, pack" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @error('unit')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Initial In Stock</label>
+                <input type="number" name="in_stock" value="{{ old('in_stock', 0) }}" min="0" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @error('in_stock')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
-            <div class="form-group">
-                <label for="min_quantity">min_quantity</label>
-                <input type="number" class="form-control @error('min_quantity') is-invalid @enderror" name="min_quantity" value="{{ old('min_quantity') }}" placeholder="Enter min_quantity no ">
-                @error('min_quantity')<span style="color:red"> {{ $errors->first('min_quantity')}} </span> @enderror
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Min Alert Quantity</label>
+                <input type="number" name="min_quantity" value="{{ old('min_quantity', 5) }}" min="0" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @error('min_quantity')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
             </div>
 
-            <div class="form-group">
-                <label for="max_quantity">max_quantity</label>
-                <input type="max_quantity" class="form-control @error('max_quantity') is-invalid @enderror" name="max_quantity" value="{{ old('max_quantity') }}" placeholder="Enter max_quantity no ">
-                @error('max_quantity')<span style="color:red"> {{ $errors->first('max_quantity')}} </span> @enderror
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">Max Stock Limit</label>
+                <input type="number" name="max_quantity" value="{{ old('max_quantity', 100) }}" min="0" class="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                @error('max_quantity')<p class="text-xs text-rose-600 mt-1">{{ $message }}</p>@enderror
             </div>
-            
-            
-            <div class="form-group" style="margin-top: 24px;">
-                <input type="submit" class="btn btn-primary" value="Submit">
-            </div>
+        </div>
 
-        </form>
-
-        <span class="text-danger"> Last 5 consumables:
-            @forelse ($consumables as $consumable)
-                <a href="{{route('consumables.show',$consumable->id)}}">{{$consumable->name}}</a>, 
-            @empty
-                No items found.
-            @endforelse
-        </span>
-                    
-	</div>
-    <div class="card-footer"><a class="btn btn-primary" href="{{route('consumables.index')}}">Show All</a></div>
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-end space-x-3">
+            <a href="{{ route('consumables.index') }}" class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 hover:bg-slate-200 transition-colors">
+                Cancel
+            </a>
+            <button type="submit" class="px-5 py-2.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition-colors">
+                Create Consumable
+            </button>
+        </div>
+    </form>
 </div>
 @endsection

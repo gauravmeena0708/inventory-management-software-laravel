@@ -2,155 +2,148 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreConsumableRequest;
+use App\Http\Requests\UpdateConsumableRequest;
 use App\Models\Consumable;
 use App\Models\Official;
-use App\Models\Entry;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class ConsumableController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-    }
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Display a listing of the consumables.
      */
-    public function index()
+    public function index(Request $request): View|JsonResponse
     {
-        $consumables = Consumable::get();
-        return view('consumables.index',['consumables'=>$consumables]);
-    }
+        $this->authorize('viewAny', Consumable::class);
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create()
-    {
-        $consumables = consumable::latest()->take(5)->get();
-        return view('consumables.create',['consumables'=>$consumables]);
-    }
+        $query = Consumable::query()->withCount('entries');
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        $input = $request->all();
-
-        $validated = $request->validate([
-            'name'=>'required|min:2',
-            'in_stock'=>'required',
-            'max_quantity'=>'required',
-            'min_quantity'=>'required'
-        ]);
-        Consumable::create($validated);
-        
-        //return redirect()->route('categories.index');
-        return back()->with('success','Agreement created Successfull');
-    }
-
-    /**
-     * Display the specified resource.
-     *
-     * @param  \App\Models\Consumable  $consumable
-     * @return \Illuminate\Http\Response
-     */
-    public function show(Consumable $consumable)
-    {
-        return view('consumables.show', ['consumable'=>$consumable]);
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Consumable  $consumable
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Consumable $consumable)
-    {
-        return view('consumables.edit', ['consumable'=>$consumable]);
-    }
-
-    public function addEntry(Consumable $consumable)
-    {
-        $officials = Official::get();
-        return view('consumables.addEntry', ['consumable'=>$consumable, 'officials'=>$officials]);
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Consumable  $consumable
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Consumable $consumable)
-    {
-        $validated = $request->validate([
-            'name'=>'required|min:2',
-            'max_quantity'=>'required',
-            'min_quantity'=>'required'
-        ]);
-
-        $consumable->update($validated);
-        return back()->with('success','Consumable updated Successfull');
-    }
-
-    public function updateEntry(Request $request, Consumable $consumable)
-    {
-        $validated = $request->validate([
-            'quantity'=>'required|min:1|max:5',
-            'type' => 'required|min:0|max:1',
-            'o_id' => 'required'
-        ]);
-        if($validated['type']=="1") {
-            $new_entry = [
-                'consumable_id'=>$consumable['id'],
-                'type' =>1,
-                'amount' =>$validated['quantity'],
-                'stock' => $consumable['in_stock']-$validated['quantity'],
-                'issuer_id' => $validated['o_id']
-            ];
-            $update_consumable=[
-                'in_stock' => $consumable['in_stock']-$validated['quantity']
-            ];
-            
-            
-        } else {
-
-            $new_entry = [
-                'consumable_id'=>$consumable['id'],
-                'type' =>0,
-                'amount' =>$validated['quantity'],
-                'stock' => $consumable['in_stock']+$validated['quantity'],
-                'issuer_id' => $validated['o_id']
-            ];
-            $update_consumable=[
-                'in_stock' => $consumable['in_stock']+$validated['quantity']
-            ];
-            
+        if ($request->filled('search')) {
+            $query->search($request->input('search'));
         }
-        $consumable->update($update_consumable);
-        Entry::create($new_entry);
-        return back()->with('success','Consumable updated Successfull');
+
+        if ($request->boolean('low_stock')) {
+            $query->lowStock();
+        }
+
+        $consumables = $query->orderBy('name')->paginate(20)->withQueryString();
+
+        if ($request->wantsJson()) {
+            return response()->json($consumables);
+        }
+
+        return view('consumables.index', [
+            'consumables' => $consumables,
+            'filters' => $request->only(['search', 'low_stock']),
+        ]);
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Consumable  $consumable
-     * @return \Illuminate\Http\Response
+     * Show the form for creating a new consumable.
      */
-    public function destroy(Consumable $consumable)
+    public function create(): View
     {
-        //
+        $this->authorize('create', Consumable::class);
+
+        return view('consumables.create');
+    }
+
+    /**
+     * Store a newly created consumable in storage.
+     */
+    public function store(StoreConsumableRequest $request): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validated();
+        if (! isset($validated['in_stock'])) {
+            $validated['in_stock'] = 0;
+        }
+
+        $consumable = Consumable::create($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Consumable created successfully.',
+                'consumable' => $consumable,
+            ], 201);
+        }
+
+        return redirect()->route('consumables.show', $consumable)
+            ->with('success', 'Consumable item created successfully.');
+    }
+
+    /**
+     * Display the specified consumable with its stock entries.
+     */
+    public function show(Request $request, Consumable $consumable): View|JsonResponse
+    {
+        $this->authorize('view', $consumable);
+
+        $consumable->load([
+            'entries' => fn ($q) => $q
+                ->with([
+                    'recipient' => fn ($officialQuery) => $officialQuery->visibleTo($request->user()),
+                    'recorder',
+                ])
+                ->latest('id')
+                ->take(50),
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json($consumable);
+        }
+
+        return view('consumables.show', [
+            'consumable' => $consumable,
+            'officials' => Official::visibleTo($request->user())->orderBy('name')->get(),
+        ]);
+    }
+
+    /**
+     * Show the form for editing the specified consumable.
+     */
+    public function edit(Consumable $consumable): View
+    {
+        $this->authorize('update', $consumable);
+
+        return view('consumables.edit', ['consumable' => $consumable]);
+    }
+
+    /**
+     * Update the specified consumable in storage.
+     */
+    public function update(UpdateConsumableRequest $request, Consumable $consumable): RedirectResponse|JsonResponse
+    {
+        $consumable->update($request->validated());
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'message' => 'Consumable updated successfully.',
+                'consumable' => $consumable->fresh(),
+            ]);
+        }
+
+        return redirect()->route('consumables.show', $consumable)
+            ->with('success', 'Consumable updated successfully.');
+    }
+
+    /**
+     * Remove the specified consumable from storage.
+     */
+    public function destroy(Request $request, Consumable $consumable): RedirectResponse|JsonResponse
+    {
+        $this->authorize('delete', $consumable);
+
+        $consumable->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['message' => 'Consumable deleted successfully.']);
+        }
+
+        return redirect()->route('consumables.index')
+            ->with('success', 'Consumable deleted successfully.');
     }
 }
